@@ -2,11 +2,12 @@
 
 import { useMemo, useRef } from "react";
 import { useFrame, useThree } from "@react-three/fiber";
-import { Group, MathUtils, PointLight, Vector2 } from "three";
+import { Group, MathUtils, Mesh, PointLight, Vector2 } from "three";
 
 function Candle({ position, height, reducedMotion }: { position: [number, number, number]; height: number; reducedMotion: boolean }) {
   const flame = useRef<Group>(null);
   const light = useRef<PointLight>(null);
+  const halo = useRef<Mesh>(null);
   const hovered = useRef(false);
   const warmth = useRef(0);
   const time = useRef(height * 18);
@@ -15,25 +16,48 @@ function Candle({ position, height, reducedMotion }: { position: [number, number
     [0, 0], [0.14, 0], [0.145, 0.023], [0.11, 0.04], [0.055, 0.06], [0.028, 0.095],
     [0.028, 0.16], [0.052, 0.18], [0.052, 0.20], [0.035, 0.215], [0.032, 0.27], [0.10, 0.29], [0.11, 0.31], [0.065, 0.32],
   ].map(([x, y]) => new Vector2(x, y)), []);
+
   useFrame((_, delta) => {
-    if (!reducedMotion) time.current += Math.min(delta, .05);
+    const clampedDelta = Math.min(delta, 0.05);
+    if (!reducedMotion) time.current += clampedDelta;
     const t = time.current;
-    warmth.current = reducedMotion ? Number(hovered.current) : MathUtils.damp(warmth.current, Number(hovered.current), 2.3, Math.min(delta,.05));
+    warmth.current = reducedMotion ? Number(hovered.current) : MathUtils.damp(warmth.current, Number(hovered.current), 5.5, clampedDelta);
     const flicker = reducedMotion ? 0 : Math.sin(t * 7.4) * 0.06 + Math.sin(t * 13.1) * 0.035;
     if (flame.current) {
-      flame.current.scale.y = 1 + flicker + warmth.current * .18;
+      flame.current.scale.set(
+        1 + warmth.current * 0.65,
+        1 + flicker + warmth.current * 0.85,
+        1 + warmth.current * 0.65
+      );
       flame.current.rotation.z = reducedMotion ? 0 : Math.sin(t * 4.8) * 0.055;
     }
-    if (light.current) light.current.intensity = 1.65 + flicker * 2 + warmth.current * 1.7;
+    if (halo.current) {
+      (halo.current.material as import("three").MeshBasicMaterial).opacity = 0.25 + warmth.current * 0.55;
+    }
+    if (light.current) {
+      light.current.intensity = 1.7 + flicker * 2 + warmth.current * 7.8;
+      light.current.distance = 3.8 + warmth.current * 4.0;
+    }
   });
+
   return (
     <group position={position} name="Hover candle">
-      <mesh position={[0, (height + .45) / 2, 0]}
-        onPointerOver={event => { event.stopPropagation(); hovered.current = true; invalidate(); }}
-        onPointerOut={() => { hovered.current = false; invalidate(); }}
+      <mesh
+        position={[0, (height + 0.45) / 2, 0]}
+        onPointerOver={(event) => {
+          event.stopPropagation();
+          hovered.current = true;
+          document.body.style.cursor = "pointer";
+          invalidate();
+        }}
+        onPointerOut={() => {
+          hovered.current = false;
+          document.body.style.cursor = "auto";
+          invalidate();
+        }}
       >
-        <cylinderGeometry args={[.17,.17,height+.5,8]} />
-        <meshBasicMaterial transparent opacity={0} depthWrite={false} colorWrite={false} />
+        <cylinderGeometry args={[0.26, 0.26, height + 0.7, 16]} />
+        <meshBasicMaterial transparent opacity={0} depthWrite={false} />
       </mesh>
       <mesh castShadow receiveShadow>
         <latheGeometry args={[holder, 24]} />
@@ -56,14 +80,18 @@ function Candle({ position, height, reducedMotion }: { position: [number, number
       <group ref={flame} position={[0, height + 0.35, 0]}>
         <mesh position={[0, 0.047, 0]} scale={[0.021, 0.063, 0.018]}>
           <sphereGeometry args={[1, 16, 12]} />
-          <meshBasicMaterial color="#ffb950" transparent opacity={0.8} toneMapped={false} />
+          <meshBasicMaterial color="#ffb950" transparent opacity={0.85} toneMapped={false} />
         </mesh>
         <mesh position={[0, 0.025, 0.009]} scale={[0.012, 0.033, 0.012]}>
           <sphereGeometry args={[1, 12, 8]} />
           <meshBasicMaterial color="#fff2c5" toneMapped={false} />
         </mesh>
+        <mesh ref={halo} position={[0, 0.042, 0]} scale={[0.045, 0.085, 0.045]}>
+          <sphereGeometry args={[1, 16, 12]} />
+          <meshBasicMaterial color="#ff9c2b" transparent opacity={0.25} depthWrite={false} toneMapped={false} />
+        </mesh>
       </group>
-      <pointLight ref={light} position={[0, height + 0.41, 0]} color="#ffb765" intensity={1.8} distance={3.5} decay={2} />
+      <pointLight ref={light} position={[0, height + 0.41, 0]} color="#ffb765" intensity={1.8} distance={3.8} decay={2} />
     </group>
   );
 }
