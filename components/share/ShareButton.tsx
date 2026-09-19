@@ -1,105 +1,48 @@
 "use client";
 
-import { useState } from "react";
+import { useState, useRef, useEffect } from "react";
 import { Share2, Check } from "lucide-react";
 import type { Quote } from "@/data/quotes";
 
-interface ShareButtonProps {
-  quote: Quote;
-}
+export interface ShareQuotePayload { title: string; text: string; quoteId: string; book: string; url: string }
 
-export interface ShareQuotePayload {
-  title: string;
-  text: string;
-  quoteId: string;
-  book: string;
-  url: string;
-}
-
-/**
- * Dispatches quote sharing via Web Share API or falls back to clipboard copying.
- * Structured to cleanly accept a future `cardImageUrl` when server-generated
- * social cards are implemented.
- */
-export async function shareOrCopyQuote(payload: ShareQuotePayload): Promise<"shared" | "copied"> {
+export async function shareOrCopyQuote(payload: ShareQuotePayload): Promise<"shared" | "copied" | "cancelled"> {
   const shareText = `“${payload.text}” — from ${payload.book} | Bartholomew Says`;
-
-  if (typeof navigator !== "undefined" && navigator.share) {
+  if (navigator.share) {
     try {
-      await navigator.share({
-        title: payload.title,
-        text: shareText,
-        url: payload.url,
-      });
+      await navigator.share({ title: payload.title, text: shareText, url: payload.url });
       return "shared";
-    } catch (err: unknown) {
-      // User aborted share sheet, or Web Share failed; fallback to clipboard if not aborted
-      if (err instanceof Error && err.name === "AbortError") {
-        return "shared";
-      }
+    } catch (error) {
+      if (error instanceof Error && error.name === "AbortError") return "cancelled";
     }
   }
-
-  // Fallback to Clipboard API
-  if (typeof navigator !== "undefined" && navigator.clipboard) {
-    await navigator.clipboard.writeText(`${shareText}\n${payload.url}`);
-    return "copied";
-  }
-
+  if (!navigator.clipboard) throw new Error("Clipboard unavailable");
+  await navigator.clipboard.writeText(`${shareText}\n${payload.url}`);
   return "copied";
 }
 
-export function ShareButton({ quote }: ShareButtonProps) {
-  const [status, setStatus] = useState<"idle" | "copied" | "shared">("idle");
-
+export function ShareButton({ quote, disabled = false }: { quote: Quote; disabled?: boolean }) {
+  const [status, setStatus] = useState<"idle" | "copied" | "shared" | "error">("idle");
+  const [busy, setBusy] = useState(false);
+  const timer = useRef<ReturnType<typeof setTimeout> | null>(null);
+  useEffect(() => () => { if (timer.current) clearTimeout(timer.current); }, []);
   const handleShare = async () => {
-    const url = typeof window !== "undefined" ? window.location.href : "";
-    const payload: ShareQuotePayload = {
-      title: "Bartholomew Says",
-      text: quote.text,
-      quoteId: quote.id,
-      book: quote.book,
-      url,
-    };
-
-    const result = await shareOrCopyQuote(payload);
-    setStatus(result);
-
-    setTimeout(() => {
-      setStatus("idle");
-    }, 2200);
+    setBusy(true);
+    try {
+      const result = await shareOrCopyQuote({ title: "Bartholomew Says", text: quote.text, quoteId: quote.id, book: quote.book, url: window.location.href });
+      setStatus(result === "cancelled" ? "idle" : result);
+    } catch { setStatus("error"); }
+    finally { setBusy(false); }
+    if (timer.current) clearTimeout(timer.current);
+    timer.current = setTimeout(() => setStatus("idle"), 2800);
   };
-
   return (
-    <div className="relative inline-flex items-center">
-      <button
-        type="button"
-        onClick={handleShare}
-        aria-label="Share this quote"
-        className="btn-gothic-secondary px-4 py-2.5 rounded-sm text-xs sm:text-sm tracking-wider uppercase font-medium text-[#c9c0b1] flex items-center gap-2 cursor-pointer focus:outline-none"
-      >
-        {status === "copied" ? (
-          <>
-            <Check className="w-3.5 h-3.5 text-[#c5a059]" />
-            <span className="text-[#dfb96c]">Copied</span>
-          </>
-        ) : (
-          <>
-            <Share2 className="w-3.5 h-3.5 text-[#c5a059]" />
-            <span>Share this quote</span>
-          </>
-        )}
+    <div className="share-action">
+      <button type="button" onClick={handleShare} disabled={disabled || busy} aria-label="Share this quote" className="share-quote">
+        {status === "copied" || status === "shared" ? <Check size={13} aria-hidden="true" /> : <Share2 size={13} strokeWidth={1.4} aria-hidden="true" />}
+        <span>{status === "copied" ? "Copied" : status === "shared" ? "Shared" : "Share this quote"}</span>
       </button>
-
-      {/* Temporary Feedback Notification */}
-      {status === "copied" && (
-        <span
-          role="status"
-          className="absolute -top-9 left-1/2 -translate-x-1/2 px-2.5 py-1 bg-[#12141a] border border-[#c5a059]/40 text-[#f2ede4] text-xs font-sans rounded shadow-lg whitespace-nowrap animate-fade-in"
-        >
-          Copied to clipboard
-        </span>
-      )}
+      <span role="status" className={status === "error" ? "share-feedback" : "sr-only"}>{status === "error" ? "Couldn’t share. You can select and copy the quote." : status === "copied" ? "Quote copied to clipboard" : ""}</span>
     </div>
   );
 }

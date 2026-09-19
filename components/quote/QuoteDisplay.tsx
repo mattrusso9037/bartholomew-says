@@ -4,57 +4,29 @@ import { motion, AnimatePresence } from "framer-motion";
 import type { Quote } from "@/data/quotes";
 import { Attribution } from "./Attribution";
 
-interface QuoteDisplayProps {
-  quote: Quote;
-  reducedMotion?: boolean;
-}
-
-export function QuoteDisplay({
-  quote,
-  reducedMotion = false,
-}: QuoteDisplayProps) {
+export function QuoteDisplay({ quote, reducedMotion = false, onSettled }: {
+  quote: Quote; reducedMotion?: boolean; onSettled?: () => void;
+}) {
   return (
-    <div className="relative min-h-[220px] sm:min-h-[260px] md:min-h-[300px] flex flex-col justify-center">
-      {/* Decorative Gothic Opening Quote Mark */}
-      <span
-        className="font-serif select-none pointer-events-none text-6xl sm:text-7xl md:text-8xl text-[#c5a059]/20 absolute -top-8 -left-4 sm:-left-8 leading-none"
-        aria-hidden="true"
-      >
-        “
-      </span>
-
-      <AnimatePresence mode="wait">
+    <div className="quote-stage">
+      <span className="quotation-mark" aria-hidden="true">“</span>
+      <div className="sr-only" role="status" aria-live="polite" aria-atomic="true">{quote.text} From {quote.book}.</div>
+      <AnimatePresence mode="wait" initial={false}>
         <motion.div
           key={quote.id}
-          initial={
-            reducedMotion
-              ? { opacity: 0 }
-              : { opacity: 0, y: 12, filter: "blur(6px)" }
-          }
-          animate={
-            reducedMotion
-              ? { opacity: 1 }
-              : { opacity: 1, y: 0, filter: "blur(0px)" }
-          }
-          exit={
-            reducedMotion
-              ? { opacity: 0 }
-              : { opacity: 0, y: -10, filter: "blur(5px)" }
-          }
-          transition={{
-            duration: reducedMotion ? 0.2 : 0.45,
-            ease: [0.16, 1, 0.3, 1],
+          initial="hidden"
+          animate="visible"
+          exit="exit"
+          variants={{
+            hidden: { opacity: 0, y: reducedMotion ? 0 : 10, filter: reducedMotion ? "blur(0px)" : "blur(3px)" },
+            visible: { opacity: 1, y: 0, filter: "blur(0px)" },
+            exit: { opacity: 0, y: reducedMotion ? 0 : -8, filter: reducedMotion ? "blur(0px)" : "blur(3px)" },
           }}
-          className="flex flex-col gap-6"
+          transition={{ duration: reducedMotion ? 0.12 : 0.48, ease: [0.22, 1, 0.36, 1] }}
+          onAnimationComplete={(definition) => { if (definition === "visible") onSettled?.(); }}
+          className="quote-content"
         >
-          {/* Main Quote Text */}
-          <blockquote className="relative z-10">
-            <p className="font-serif text-2xl sm:text-3xl md:text-4xl lg:text-[2.65rem] leading-[1.28] tracking-[-0.01em] text-[#f4efe6] text-shadow-gothic font-normal">
-              “{quote.text}”
-            </p>
-          </blockquote>
-
-          {/* Book Attribution */}
+          <blockquote><p>“{quote.text}”</p></blockquote>
           <Attribution book={quote.book} />
         </motion.div>
       </AnimatePresence>

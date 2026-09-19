@@ -1,138 +1,63 @@
 "use client";
 
-import { useEffect, useState, Suspense } from "react";
+import { Component, useEffect, useState, useSyncExternalStore, Suspense, type ReactNode } from "react";
 import { Canvas } from "@react-three/fiber";
+import { ACESFilmicToneMapping, PCFShadowMap } from "three";
 import { SceneLighting } from "./SceneLighting";
 import { Bartholomew } from "./Bartholomew";
 import { Books } from "./Books";
 import { Plants } from "./Plants";
 import { Moths } from "./Moths";
+import { Atmosphere } from "./Atmosphere";
 
-interface BartholomewSceneProps {
-  reactionTrigger: number;
-  reducedMotion?: boolean;
+interface SceneProps { reactionTrigger: number; reducedMotion?: boolean }
+const compactQuery = "(max-width: 760px)";
+function subscribeCompact(callback: () => void) {
+  const query = window.matchMedia(compactQuery);
+  query.addEventListener("change", callback);
+  return () => query.removeEventListener("change", callback);
 }
 
-function DioramaGroup({
-  reactionTrigger,
-  reducedMotion,
-}: {
-  reactionTrigger: number;
-  reducedMotion: boolean;
-}) {
-  const [layoutState, setLayoutState] = useState<{
-    position: [number, number, number];
-    rotation: [number, number, number];
-    scale: number;
-  }>({
-    position: [1.2, -0.56, 0],
-    rotation: [0.16, -0.36, 0],
-    scale: 1.08,
-  });
-
-  useEffect(() => {
-    function updateResponsiveLayout() {
-      const width = window.innerWidth;
-      if (width >= 1280) {
-        // Large desktop: diorama comfortably on right side, grounded
-        setLayoutState({
-          position: [1.22, -0.56, 0],
-          rotation: [0.16, -0.36, 0],
-          scale: 1.08,
-        });
-      } else if (width >= 1024) {
-        // Standard desktop
-        setLayoutState({
-          position: [1.08, -0.58, 0],
-          rotation: [0.16, -0.32, 0],
-          scale: 0.98,
-        });
-      } else if (width >= 640) {
-        // Tablet: lower and right
-        setLayoutState({
-          position: [0.72, -0.82, -0.2],
-          rotation: [0.18, -0.26, 0],
-          scale: 0.85,
-        });
-      } else {
-        // Mobile: anchored lower right, framing without overlap
-        setLayoutState({
-          position: [0.42, -1.2, -0.5],
-          rotation: [0.2, -0.22, 0],
-          scale: 0.7,
-        });
-      }
-    }
-
-    updateResponsiveLayout();
-    window.addEventListener("resize", updateResponsiveLayout);
-    return () => window.removeEventListener("resize", updateResponsiveLayout);
-  }, []);
-
-  return (
-    <group
-      position={layoutState.position}
-      rotation={layoutState.rotation}
-      scale={layoutState.scale}
-    >
-      <SceneLighting reducedMotion={reducedMotion} />
-      <Books reactionTrigger={reactionTrigger} reducedMotion={reducedMotion} />
-      <Plants reducedMotion={reducedMotion} />
-      <Bartholomew
-        reactionTrigger={reactionTrigger}
-        reducedMotion={reducedMotion}
-      />
-      <Moths reactionTrigger={reactionTrigger} reducedMotion={reducedMotion} />
-    </group>
-  );
+class SceneBoundary extends Component<{ children: ReactNode }, { failed: boolean }> {
+  state = { failed: false };
+  static getDerivedStateFromError() { return { failed: true }; }
+  componentDidCatch(error: Error) { console.error("The decorative diorama could not load:", error); }
+  render() { return this.state.failed ? null : this.props.children; }
 }
 
-export default function BartholomewScene({
-  reactionTrigger,
-  reducedMotion = false,
-}: BartholomewSceneProps) {
-  const [isVisible, setIsVisible] = useState(true);
-
-  // Pause rendering when page/tab is hidden to preserve battery and GPU
+export default function BartholomewScene({ reactionTrigger, reducedMotion = false }: SceneProps) {
+  const [visible, setVisible] = useState(true);
+  const compact = useSyncExternalStore(subscribeCompact, () => window.matchMedia(compactQuery).matches, () => false);
   useEffect(() => {
-    const handleVisibilityChange = () => {
-      setIsVisible(!document.hidden);
-    };
-
-    document.addEventListener("visibilitychange", handleVisibilityChange);
-    return () => {
-      document.removeEventListener("visibilitychange", handleVisibilityChange);
-    };
+    const onVisibility = () => setVisible(!document.hidden);
+    onVisibility();
+    document.addEventListener("visibilitychange", onVisibility);
+    return () => document.removeEventListener("visibilitychange", onVisibility);
   }, []);
-
   return (
-    <div
-      className="absolute inset-0 pointer-events-none select-none z-10"
-      aria-hidden="true"
-    >
-      <Canvas
-        camera={{
-          fov: 38,
-          position: [0, 0.2, 4.3],
-          near: 0.1,
-          far: 20,
-        }}
-        dpr={[1, 1.75]} // Cap DPR for high visual quality and smooth frame rates
-        gl={{
-          alpha: true,
-          antialias: true,
-          powerPreference: "high-performance",
-        }}
-        frameloop={isVisible ? "always" : "never"}
-        className="w-full h-full pointer-events-auto"
-      >
-        <Suspense fallback={null}>
-          <DioramaGroup
-            reactionTrigger={reactionTrigger}
-            reducedMotion={reducedMotion}
-          />
-        </Suspense>
-      </Canvas>
+    <div className="diorama" aria-hidden="true">
+      <SceneBoundary>
+        <Canvas
+          camera={{ fov: 34, position: [0, 2.55, 6.7], near: 0.1, far: 20 }}
+          dpr={compact ? [1, 1.25] : [1, 1.65]}
+          shadows={{ type: PCFShadowMap }}
+          gl={{ alpha: true, antialias: true, powerPreference: "low-power", toneMapping: ACESFilmicToneMapping }}
+          frameloop={!visible ? "never" : reducedMotion ? "demand" : "always"}
+          onCreated={({ camera, gl }) => { camera.lookAt(0, 0.92, 0); gl.setClearColor(0x000000, 0); gl.toneMappingExposure = 1.05; }}
+          fallback={<span />}
+        >
+          <Suspense fallback={null}>
+            <group rotation={[0, -0.22, 0]}>
+              <SceneLighting reducedMotion={reducedMotion} compact={compact} />
+              <Books />
+              <Plants reducedMotion={reducedMotion} compact={compact} />
+              <Bartholomew reactionTrigger={reactionTrigger} reducedMotion={reducedMotion} />
+              <Moths reactionTrigger={reactionTrigger} reducedMotion={reducedMotion} compact={compact} />
+              <Atmosphere compact={compact} reducedMotion={reducedMotion} />
+            </group>
+          </Suspense>
+        </Canvas>
+      </SceneBoundary>
     </div>
   );
 }

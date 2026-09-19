@@ -6,13 +6,13 @@ const cormorant = Cormorant_Garamond({
   subsets: ["latin"],
   weight: ["400", "500", "600", "700"],
   style: ["normal", "italic"],
-  variable: "--font-serif",
+  variable: "--font-cormorant",
   display: "swap",
 });
 
 const inter = Inter({
   subsets: ["latin"],
-  variable: "--font-sans",
+  variable: "--font-inter",
   display: "swap",
 });
 
@@ -44,7 +44,7 @@ export default function RootLayout({
       lang="en"
       className={`${cormorant.variable} ${inter.variable} h-full antialiased dark`}
     >
-      <body className="min-h-full h-full bg-[#0a0b0e] text-[#f2ede4] font-serif overflow-hidden select-none selection:bg-[#c5a059]/30 selection:text-[#f7f2ea]">
+      <body className="min-h-full font-serif">
         {children}
       </body>
     </html>
