@@ -49,6 +49,14 @@ button:disabled { cursor: default; }
 .next-quote > svg { color: #baa477; transition: transform .3s; }
 .next-quote:hover:not(:disabled) > svg { transform: translateX(3px); }
 .next-quote:disabled { opacity: .6; }
+.next-quote.reset-quote { border-color: #d3ba84a0; background: linear-gradient(115deg, #c7a7602e, #a88f5a14); }
+.next-quote.reset-quote:hover:not(:disabled) { border-color: #f0d59b; background: linear-gradient(115deg, #d4b36a38, #b89d6220); }
+.next-quote.reset-quote > svg { transition: transform .4s ease; }
+.next-quote.reset-quote:hover:not(:disabled) > svg { transform: rotate(-45deg); }
+.quote-actions-secondary { display: flex; align-items: center; gap: 24px; flex-wrap: wrap; width: 100%; }
+.quote-counter { display: inline-flex; align-items: center; gap: 7px; color: #9c9c8e; font: 9px var(--font-inter), sans-serif; letter-spacing: .12em; text-transform: uppercase; }
+.quote-counter-dot { width: 5px; height: 5px; border-radius: 50%; background: #baa47770; transition: background .3s, box-shadow .3s; }
+.quote-counter-dot.is-complete { background: #dfc181; box-shadow: 0 0 6px #dfc18180; }
 .share-action { position: relative; }
 .share-quote { display: inline-flex; align-items: center; gap: 10px; padding: 8px 0; border: 0; background: none; color: #b7b6a9; font: 9px var(--font-inter), sans-serif; letter-spacing: .10em; cursor: pointer; transition: color .2s; }
 .share-quote:hover { color: #efdfbf; }

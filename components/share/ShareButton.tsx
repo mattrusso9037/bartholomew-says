@@ -4,7 +4,7 @@ import { useState, useRef, useEffect } from "react";
 import { Share2, Check } from "lucide-react";
 import type { Quote } from "@/data/quotes";
 
-export interface ShareQuotePayload { title: string; text: string; quoteId: string; book: string; url: string }
+export interface ShareQuotePayload { title: string; text: string; quoteId: number | string; book: string; url: string }
 
 export async function shareOrCopyQuote(payload: ShareQuotePayload): Promise<"shared" | "copied" | "cancelled"> {
   const shareText = `“${payload.text}” — from ${payload.book} | Bartholomew Says`;
@@ -28,8 +28,17 @@ export function ShareButton({ quote, disabled = false }: { quote: Quote; disable
   useEffect(() => () => { if (timer.current) clearTimeout(timer.current); }, []);
   const handleShare = async () => {
     setBusy(true);
+    const canonicalUrl = typeof window !== "undefined"
+      ? `${window.location.origin}${window.location.pathname}?quote=${encodeURIComponent(String(quote.id))}`
+      : "";
     try {
-      const result = await shareOrCopyQuote({ title: "Bartholomew Says", text: quote.text, quoteId: quote.id, book: quote.book, url: window.location.href });
+      const result = await shareOrCopyQuote({
+        title: "Bartholomew Says",
+        text: quote.text,
+        quoteId: quote.id,
+        book: quote.book,
+        url: canonicalUrl,
+      });
       setStatus(result === "cancelled" ? "idle" : result);
     } catch { setStatus("error"); }
     finally { setBusy(false); }
