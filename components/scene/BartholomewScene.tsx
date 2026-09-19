@@ -10,7 +10,11 @@ import { Plants } from "./Plants";
 import { Moths } from "./Moths";
 import { Atmosphere } from "./Atmosphere";
 
-interface SceneProps { reactionTrigger: number; reducedMotion?: boolean }
+interface SceneProps {
+  reactionTrigger: number;
+  reducedMotion?: boolean;
+  onInteract?: () => void;
+}
 const compactQuery = "(max-width: 760px)";
 function subscribeCompact(callback: () => void) {
   const query = window.matchMedia(compactQuery);
@@ -25,7 +29,11 @@ class SceneBoundary extends Component<{ children: ReactNode }, { failed: boolean
   render() { return this.state.failed ? null : this.props.children; }
 }
 
-export default function BartholomewScene({ reactionTrigger, reducedMotion = false }: SceneProps) {
+export default function BartholomewScene({
+  reactionTrigger,
+  reducedMotion = false,
+  onInteract,
+}: SceneProps) {
   const [visible, setVisible] = useState(true);
   const compact = useSyncExternalStore(subscribeCompact, () => window.matchMedia(compactQuery).matches, () => false);
   useEffect(() => {
@@ -51,7 +59,11 @@ export default function BartholomewScene({ reactionTrigger, reducedMotion = fals
               <SceneLighting reducedMotion={reducedMotion} compact={compact} />
               <Books />
               <Plants reducedMotion={reducedMotion} compact={compact} />
-              <Bartholomew reactionTrigger={reactionTrigger} reducedMotion={reducedMotion} />
+              <Bartholomew
+                reactionTrigger={reactionTrigger}
+                reducedMotion={reducedMotion}
+                onInteract={onInteract}
+              />
               <Moths reactionTrigger={reactionTrigger} reducedMotion={reducedMotion} compact={compact} />
               <Atmosphere compact={compact} reducedMotion={reducedMotion} />
             </group>

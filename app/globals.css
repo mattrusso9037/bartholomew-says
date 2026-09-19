@@ -54,7 +54,7 @@ button:disabled { cursor: default; }
 .share-quote:disabled { opacity: .5; }
 .share-feedback { position: absolute; top: 34px; left: 0; width: 240px; background: #182021; border: 1px solid #b8a17280; padding: 10px; color: #e5d9bb; font-size: 14px; }
 .diorama { position: absolute; z-index: 1; right: -3.5%; top: 13%; width: 62%; height: 77%; pointer-events: none; -webkit-mask-image: linear-gradient(to bottom, transparent, #000 8%, #000 87%, transparent 100%); mask-image: linear-gradient(to bottom, transparent, #000 8%, #000 87%, transparent 100%); }
-.diorama canvas { pointer-events: none; }
+.diorama canvas { pointer-events: auto; }
 .character-caption { position: absolute; z-index: 2; left: 69%; bottom: 11%; text-align: center; transform: translateX(-12%); color: #c5b38d; pointer-events: none; }
 .caption-rule { display: block; width: 34px; height: 1px; background: #b4a27c60; margin: 0 auto 12px; }
 .character-caption p { font-size: 23px; margin: 0 0 3px; font-style: italic; }

@@ -60,7 +60,11 @@ export default function Home() {
         <QuoteActions quote={currentQuote} onNextQuote={handleNextQuote} isTransitioning={isTransitioning} />
       </section>
 
-      <BartholomewScene reactionTrigger={reactionTrigger} reducedMotion={reducedMotion} />
+      <BartholomewScene
+        reactionTrigger={reactionTrigger}
+        reducedMotion={reducedMotion}
+        onInteract={handleNextQuote}
+      />
       <div className="character-caption" aria-hidden="true">
         <span className="caption-rule" />
         <p>Bartholomew</p>
