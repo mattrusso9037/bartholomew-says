@@ -4,8 +4,9 @@ import { useEffect, useMemo, useRef } from "react";
 import { useFrame } from "@react-three/fiber";
 import { useGLTF } from "@react-three/drei";
 import { clone } from "three/addons/utils/SkeletonUtils.js";
-import { AnimationMixer, AnimationUtils, Euler, LoopOnce, LoopPingPong, MathUtils, Quaternion, Vector2, type AnimationAction, type Bone, type MeshStandardMaterial, type SkinnedMesh } from "three";
+import { AnimationMixer, AnimationUtils, Euler, LoopOnce, LoopPingPong, MathUtils, Quaternion, Vector2, type AnimationAction, type Bone, type Group, type MeshStandardMaterial, type SkinnedMesh } from "three";
 import { CharacterDirector, type CharacterPhase } from "@/lib/character-motion";
+import { blanketEnvelope } from "@/lib/blanket-motion";
 import { SleepingBlanket } from "./SleepingBlanket";
 
 export interface BartholomewProps {
@@ -18,9 +19,13 @@ export interface BartholomewProps {
 
 export function Bartholomew({ reactionTrigger = 0, reducedMotion = false, compact = false, onInteract, onPhaseChange }: BartholomewProps) {
   const gltf = useGLTF("/models/bartholomew-animated.glb");
+  const body = useRef<Group>(null);
   const pointer = useRef(new Vector2());
   const gaze = useRef(new Vector2());
   const blanketAmount = useRef(0);
+  const blanketSettle = useRef(1);
+  const secondsAfterWake = useRef(Infinity);
+  const wakeBlending = useRef(false);
   const phase = useRef<CharacterPhase>("seated");
   const trigger = useRef(reactionTrigger);
   const reaction = useRef(5);
@@ -66,7 +71,11 @@ export function Bartholomew({ reactionTrigger = 0, reducedMotion = false, compac
     });
     if (!mesh) throw new Error("The character asset must contain a skinned mesh.");
     const clips = gltf.animations.map(source => {
-      const clip = source.clone();
+      // Only the opening four seconds contain the descent. The remaining six
+      // seconds are a resting hold, which should not delay reverse playback.
+      const clip = source.name === "CurlUp"
+        ? AnimationUtils.subclip(source, source.name, 0, 96, 24)
+        : source.clone();
       for (const track of clip.tracks) {
         if (track.name.endsWith("Hips.position")) {
           for (let i = 0; i < track.values.length; i += 3) {
@@ -97,7 +106,13 @@ export function Bartholomew({ reactionTrigger = 0, reducedMotion = false, compac
   useEffect(() => {
     // Rebind after cleanup, including React Strict Mode's setup/cleanup replay.
     actions.current = Object.fromEntries(rig.clips.map(clip => [clip.name, rig.mixer.clipAction(clip)]));
-    director.current = new CharacterDirector(Math.random, actions.current.CurlUp.getClip().duration / 0.72, actions.current.Drowsy.getClip().duration / 0.8, actions.current.Settle.getClip().duration / 0.6);
+    director.current = new CharacterDirector(Math.random, actions.current.CurlUp.getClip().duration / 0.62, actions.current.Drowsy.getClip().duration / 0.8, actions.current.Settle.getClip().duration / 0.6, actions.current.CurlUp.getClip().duration / 0.85);
+    phase.current = "seated";
+    blanketAmount.current = 0;
+    blanketSettle.current = 1;
+    secondsAfterWake.current = Infinity;
+    wakeBlending.current = false;
+    onPhaseChange?.("seated");
     const idle = actions.current.Seated;
     idle.reset().setLoop(LoopPingPong, Infinity).setEffectiveTimeScale(0.65).play();
     currentAction.current = idle;
@@ -108,7 +123,7 @@ export function Bartholomew({ reactionTrigger = 0, reducedMotion = false, compac
       (rig.mesh.material as MeshStandardMaterial).dispose();
       rig.mesh.skeleton.dispose();
     };
-  }, [rig]);
+  }, [rig, onPhaseChange]);
 
   useEffect(() => {
     if (compact || reducedMotion) return;
@@ -130,6 +145,7 @@ export function Bartholomew({ reactionTrigger = 0, reducedMotion = false, compac
     reaction.current = Math.min(5, reaction.current + delta);
     const next = director.current?.update(delta);
     if (next) {
+      const previousPhase = phase.current;
       phase.current = next;
       const previous = currentAction.current;
       const name = next === "seated" ? "Seated" : next === "drowsy" ? "Drowsy" : next === "stretching" || next === "settling" ? "Settle" : "CurlUp";
@@ -137,10 +153,14 @@ export function Bartholomew({ reactionTrigger = 0, reducedMotion = false, compac
       if (next === "sleeping") {
         action.time = action.getClip().duration;
         action.paused = true;
+      } else if (next === "seated" && previousPhase === "waking" && wakeBlending.current) {
+        // The idle has already blended in during the last part of the rise.
+        secondsAfterWake.current = 0;
+        wakeBlending.current = false;
       } else {
         action.reset().setEffectiveWeight(1);
         const reverse = next === "waking" || next === "stretching";
-        const speed = name === "Seated" ? 0.65 : name === "Drowsy" ? 0.8 : name === "Settle" ? 0.6 : 0.72;
+        const speed = name === "Seated" ? 0.65 : name === "Drowsy" ? 0.8 : name === "Settle" ? 0.6 : reverse ? 0.85 : 0.62;
         action.setLoop(next === "seated" ? LoopPingPong : LoopOnce, next === "seated" ? Infinity : 1);
         action.clampWhenFinished = true;
         action.time = reverse ? action.getClip().duration : 0;
@@ -150,10 +170,25 @@ export function Bartholomew({ reactionTrigger = 0, reducedMotion = false, compac
       currentAction.current = action;
       onPhaseChange?.(next);
     }
+    if (phase.current === "waking" && !wakeBlending.current && actions.current.CurlUp.time < 1.36) {
+      wakeBlending.current = true;
+      const idle = actions.current.Seated;
+      idle.reset().setEffectiveWeight(1).setLoop(LoopPingPong, Infinity).setEffectiveTimeScale(0.65).play();
+      idle.crossFadeFrom(actions.current.CurlUp, 1.6, false);
+    }
     rig.mixer.update(delta);
     const curled = phase.current === "sleeping" ? 1 : phase.current === "curling" || phase.current === "waking"
       ? MathUtils.smoothstep(actions.current.CurlUp.time / actions.current.CurlUp.getClip().duration, 0.15, 0.75) : 0;
-    blanketAmount.current = MathUtils.damp(blanketAmount.current, curled, 1.5, delta);
+    // Sink into the book as he curls up; the cloth samples this adjusted pose.
+    if (body.current) {
+      body.current.position.y = 0.91 - curled * 0.10;
+      body.current.updateMatrixWorld(true);
+    }
+    secondsAfterWake.current += delta;
+    const progress = director.current ? director.current.elapsed / director.current.duration : 0;
+    const blanket = blanketEnvelope(phase.current, progress, secondsAfterWake.current);
+    blanketAmount.current = blanket.opacity;
+    blanketSettle.current = blanket.settle;
     gaze.current.x = MathUtils.damp(gaze.current.x, compact ? 0 : pointer.current.x, 2.4, delta);
     gaze.current.y = MathUtils.damp(gaze.current.y, compact ? 0 : pointer.current.y, 2.4, delta);
     rig.eyeGaze.value.copy(gaze.current).multiplyScalar(1 - curled);
@@ -171,10 +206,10 @@ export function Bartholomew({ reactionTrigger = 0, reducedMotion = false, compac
 
   return (
     <group name="BartholomewCharacter" onClick={onInteract}>
-      <group position={[0, 0.91, -0.02]} rotation={[0, 0.13, 0]} scale={0.85}>
+      <group ref={body} position={[0, 0.91, -0.02]} rotation={[0, 0.13, 0]} scale={0.85}>
         <primitive object={rig.scene} />
       </group>
-      <SleepingBlanket model={rig.mesh} amount={blanketAmount} reducedMotion={reducedMotion} compact={compact} />
+      <SleepingBlanket model={rig.mesh} head={rig.head} phase={phase} amount={blanketAmount} settle={blanketSettle} reducedMotion={reducedMotion} compact={compact} />
     </group>
   );
 }

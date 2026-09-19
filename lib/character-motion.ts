@@ -7,7 +7,7 @@ export class CharacterDirector {
   duration = 20;
   private wakeRequested = false;
   private lastVisit: "drowsy" | "curling" | "stretching" = "drowsy";
-  constructor(private random: () => number, private curlDuration: number, private drowsyDuration: number, private settleDuration: number) {
+  constructor(private random: () => number, private curlDuration: number, private drowsyDuration: number, private settleDuration: number, private wakeDuration = curlDuration) {
     this.duration = this.rest(14, 22);
   }
   private rest(min: number, max: number) { return min + this.random() * (max - min); }
@@ -38,6 +38,7 @@ export class CharacterDirector {
       : next === "sleeping" ? this.rest(24, 42)
       : next === "drowsy" ? this.drowsyDuration
       : next === "stretching" || next === "settling" ? this.settleDuration
+      : next === "waking" ? this.wakeDuration
       : this.curlDuration;
     return next;
   }

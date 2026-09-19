@@ -16,7 +16,7 @@ Quotes and attribution live in `data/quotes.ts`. Quote selection and sharing rem
 
 - `lib/character-motion.ts` schedules long rests between seated, drowsy, stretching, and sleeping sequences. Adjacent visits never repeat. Sleeping reverses the curl clip to wake; stretching reverses the final sitting segment, then plays it forward to settle.
 - `Bartholomew.tsx` owns animation blending, root-motion normalization, head stabilization, and pupil tracking. The supplied mesh has no eye bones, so the pupil effect adjusts the original texture locally within the eye sockets.
-- `SleepingBlanket.tsx` fits a cloth height field over sampled skinned body vertices, excluding the head. Breathing and small edge ripples animate its woven velvet material.
+- `SleepingBlanket.tsx` fits a small cloth height field over the body with a curved neckline behind the head. `lib/blanket-motion.ts` times its arrival during descent and keeps it on the book briefly after waking. The curl clip is trimmed to its moving section; the reversed rise blends into the seated idle. Breathing and small edge ripples animate the woven velvet material.
 - `Plants.tsx` batches curved ivy leaves into one instanced mesh and merges its stems. Moth trails use fixed particle buffers with short lifetimes.
 - The Atmosphere toggle and system reduced-motion preference stop the animation schedule, gaze, cloth, and ambient motion. Hidden tabs stop rendering. Mobile reduces pixel density, foliage, trails, cloth resolution, and shadow resolution.
 

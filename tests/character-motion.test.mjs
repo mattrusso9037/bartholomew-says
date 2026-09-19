@@ -7,6 +7,9 @@ import ts from "typescript";
 const source = await readFile(new URL("../lib/character-motion.ts", import.meta.url), "utf8");
 const { outputText } = ts.transpileModule(source, { compilerOptions: { target: ts.ScriptTarget.ES2022, module: ts.ModuleKind.ES2022 } });
 const { CharacterDirector } = await import(`data:text/javascript;base64,${Buffer.from(outputText).toString("base64")}`);
+const blanketSource = await readFile(new URL("../lib/blanket-motion.ts", import.meta.url), "utf8");
+const blanketJs = ts.transpileModule(blanketSource, { compilerOptions: { target: ts.ScriptTarget.ES2022, module: ts.ModuleKind.ES2022 } }).outputText;
+const { blanketEnvelope } = await import(`data:text/javascript;base64,${Buffer.from(blanketJs).toString("base64")}`);
 
 function advance(director, seconds) {
   const transitions = [];
@@ -57,6 +60,36 @@ test("a hidden-tab gap cannot skip the animation or the resting interval", () =>
   assert.equal(director.elapsed, 0.05);
   director.update(0);
   assert.equal(director.elapsed, 0.05);
+});
+
+test("the shortened reverse clip has its own wake duration", () => {
+  const director = new CharacterDirector(() => 0, 6.4, 30, 3, 4.7);
+  advance(director, 21);
+  assert.equal(director.phase, "sleeping");
+  director.requestAttention();
+  advance(director, 5);
+  assert.equal(director.phase, "waking");
+  assert.equal(director.duration, 4.7);
+  advance(director, 5);
+  assert.equal(director.phase, "seated");
+});
+
+test("the blanket arrives during descent and never appears on unrelated idles", () => {
+  assert.equal(blanketEnvelope("curling", 0.2, Infinity).opacity, 0);
+  assert.ok(blanketEnvelope("curling", 0.35, Infinity).opacity > 0);
+  assert.equal(blanketEnvelope("curling", 0.6, Infinity).opacity, 1);
+  for (const phase of ["seated", "drowsy", "stretching", "settling"]) {
+    assert.equal(blanketEnvelope(phase, 0.5, Infinity).opacity, 0);
+  }
+});
+
+test("the blanket settles during waking and only fades after he is seated", () => {
+  assert.deepEqual(blanketEnvelope("sleeping", 0.9, Infinity), { opacity: 1, settle: 0 });
+  assert.deepEqual(blanketEnvelope("waking", 0, Infinity), { opacity: 1, settle: 0 });
+  assert.deepEqual(blanketEnvelope("waking", 1, Infinity), { opacity: 1, settle: 1 });
+  assert.deepEqual(blanketEnvelope("seated", 0, 1.5), { opacity: 1, settle: 1 });
+  assert.ok(blanketEnvelope("seated", 0, 2.5).opacity < 1);
+  assert.equal(blanketEnvelope("seated", 0, 3.3).opacity, 0);
 });
 
 test("the consolidated asset contains every required clip on one shared skin", async () => {
