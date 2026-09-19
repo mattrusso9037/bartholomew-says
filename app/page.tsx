@@ -1,69 +1,138 @@
+"use client";
+
+import { useState, useEffect } from "react";
 import Image from "next/image";
+import dynamic from "next/dynamic";
+import { quotes, type Quote } from "@/data/quotes";
+import { getRandomQuote } from "@/lib/quotes";
+import { usePrefersReducedMotion } from "@/lib/useReducedMotion";
+import { QuoteDisplay } from "@/components/quote/QuoteDisplay";
+import { QuoteActions } from "@/components/quote/QuoteActions";
+
+// Dynamically import the 3D diorama with SSR disabled for optimal loading and zero hydration errors
+const BartholomewScene = dynamic(
+  () => import("@/components/scene/BartholomewScene"),
+  {
+    ssr: false,
+    loading: () => null,
+  }
+);
 
 export default function Home() {
+  const [currentQuote, setCurrentQuote] = useState<Quote>(quotes[0]);
+  const [reactionTrigger, setReactionTrigger] = useState(0);
+  const [isTransitioning, setIsTransitioning] = useState(false);
+  const reducedMotion = usePrefersReducedMotion();
+
+  // On client mount, select a random quote after paint
+  useEffect(() => {
+    const handle = requestAnimationFrame(() => {
+      setCurrentQuote(getRandomQuote());
+    });
+    return () => cancelAnimationFrame(handle);
+  }, []);
+
+  const handleNextQuote = () => {
+    if (isTransitioning) return;
+
+    setIsTransitioning(true);
+    // Fire the reaction trigger for Bartholomew, moths, and books
+    setReactionTrigger((prev) => prev + 1);
+
+    // Switch quote halfway through the transition for smooth cross-fading
+    setTimeout(() => {
+      setCurrentQuote((prev) => getRandomQuote(prev.id));
+    }, 320);
+
+    // Release button lockout after full transition completes
+    setTimeout(() => {
+      setIsTransitioning(false);
+    }, 680);
+  };
+
   return (
-    <div className="flex flex-col flex-1 items-center justify-center bg-zinc-50 font-sans dark:bg-black">
-      <main className="flex flex-1 w-full max-w-3xl flex-col items-center justify-between py-32 px-16 bg-white dark:bg-black sm:items-start">
+    <main className="relative w-full h-screen min-h-screen overflow-hidden flex flex-col justify-between p-6 sm:p-10 md:p-12 lg:p-16 select-none">
+      {/* ============================================================ */}
+      {/* 2D CINEMATIC GOTHIC BACKDROP & ATMOSPHERE */}
+      {/* ============================================================ */}
+      <div className="absolute inset-0 -z-30 overflow-hidden pointer-events-none">
         <Image
-          className="dark:invert h-5 w-[100px]"
-          src="/next.svg"
-          alt="Next.js logo"
-          width={100}
-          height={20}
+          src="/backgrounds/gothic-chamber.jpg"
+          alt="Ancient moonlit gothic chamber"
+          fill
           priority
+          sizes="100vw"
+          className="object-cover object-center scale-105 filter brightness-75 contrast-110"
         />
-        <div className="flex flex-col items-center gap-6 text-center sm:items-start sm:text-left">
-          <h1 className="max-w-xs text-3xl font-semibold leading-10 tracking-tight text-black dark:text-zinc-50">
-            To get started, edit the{" "}
-            <code className="rounded bg-black/[.06] px-1.5 py-0.5 font-mono text-[0.9em] dark:bg-white/[.08]">
-              page.tsx
-            </code>{" "}
-            file.
-          </h1>
-          <p className="max-w-md text-lg leading-8 text-zinc-600 dark:text-zinc-400">
-            Looking for a starting point or more instructions? Head over to{" "}
-            <a
-              href="https://vercel.com/templates?framework=next.js&utm_source=create-next-app&utm_medium=appdir-template-tw&utm_campaign=create-next-app"
-              className="font-medium text-zinc-950 dark:text-zinc-50"
-            >
-              Templates
-            </a>{" "}
-            or the{" "}
-            <a
-              href="https://nextjs.org/learn?utm_source=create-next-app&utm_medium=appdir-template-tw&utm_campaign=create-next-app"
-              className="font-medium text-zinc-950 dark:text-zinc-50"
-            >
-              Learning
-            </a>{" "}
-            center.
-          </p>
-        </div>
-        <div className="flex flex-col gap-4 text-base font-medium sm:flex-row">
-          <a
-            className="flex h-12 w-full items-center justify-center gap-2 rounded-full bg-foreground px-5 text-background transition-colors hover:bg-[#383838] dark:hover:bg-[#ccc] md:w-[158px]"
-            href="https://vercel.com/new?utm_source=create-next-app&utm_medium=appdir-template-tw&utm_campaign=create-next-app"
-            target="_blank"
-            rel="noopener noreferrer"
-          >
-            <Image
-              className="dark:invert h-[14px] w-4"
-              src="/vercel.svg"
-              alt="Vercel logomark"
-              width={16}
-              height={14}
+      </div>
+
+      {/* Atmospheric lighting gradient overlay: ensures high text readability on left side */}
+      <div
+        className="absolute inset-0 -z-20 pointer-events-none bg-gradient-to-r from-[#0a0b0e]/95 via-[#0a0b0e]/75 to-transparent lg:w-3/4"
+        aria-hidden="true"
+      />
+
+      {/* Radial vignette overlay */}
+      <div
+        className="absolute inset-0 -z-20 pointer-events-none gothic-vignette"
+        aria-hidden="true"
+      />
+
+      {/* Subtle film grain */}
+      <div
+        className="absolute inset-0 -z-10 pointer-events-none film-grain opacity-35"
+        aria-hidden="true"
+      />
+
+      {/* ============================================================ */}
+      {/* 3D FOREGROUND DIORAMA (R3F Canvas) */}
+      {/* ============================================================ */}
+      <BartholomewScene
+        reactionTrigger={reactionTrigger}
+        reducedMotion={reducedMotion}
+      />
+
+      {/* ============================================================ */}
+      {/* DOM CONTENT (Elevated above canvas) */}
+      {/* ============================================================ */}
+      {/* Header / Branding */}
+      <header className="relative z-20 flex items-center justify-between w-full max-w-7xl mx-auto pointer-events-auto">
+        <div className="flex flex-col gap-1">
+          <div className="flex items-center gap-2.5">
+            <span
+              className="w-1.5 h-1.5 rounded-full bg-[#c5a059]/80 shadow-[0_0_8px_#c5a059]"
+              aria-hidden="true"
             />
-            Deploy Now
-          </a>
-          <a
-            className="flex h-12 w-full items-center justify-center rounded-full border border-solid border-black/[.08] px-5 transition-colors hover:border-transparent hover:bg-black/[.04] dark:border-white/[.145] dark:hover:bg-[#1a1a1a] md:w-[158px]"
-            href="https://nextjs.org/docs?utm_source=create-next-app&utm_medium=appdir-template-tw&utm_campaign=create-next-app"
-            target="_blank"
-            rel="noopener noreferrer"
-          >
-            Documentation
-          </a>
+            <h1 className="font-sans text-xs sm:text-sm tracking-[0.28em] uppercase text-[#e8dfcf] font-semibold text-shadow-subtle">
+              Bartholomew Says
+            </h1>
+          </div>
+          <span className="font-serif italic text-xs text-[#c5a059]/75 tracking-wider pl-4">
+            An unnecessarily dramatic collection of wisdom
+          </span>
         </div>
-      </main>
-    </div>
+      </header>
+
+      {/* Center Left: Main Quote & Interaction */}
+      <section
+        aria-label="Current Quote"
+        className="relative z-20 w-full max-w-xl lg:max-w-2xl mx-auto lg:mx-0 my-auto flex flex-col justify-center gap-8 pointer-events-auto"
+      >
+        <QuoteDisplay quote={currentQuote} reducedMotion={reducedMotion} />
+        <QuoteActions
+          quote={currentQuote}
+          onNextQuote={handleNextQuote}
+          isTransitioning={isTransitioning}
+        />
+      </section>
+
+      {/* Footer Utility */}
+      <footer className="relative z-20 w-full max-w-7xl mx-auto flex items-center justify-between text-xs text-[#c5a059]/60 font-sans tracking-widest uppercase pointer-events-auto">
+        <span>The Knight & The Moth Series</span>
+        <span className="font-serif italic lowercase tracking-normal text-[#c9c0b1]/60">
+          “silence is preferable to nonsense”
+        </span>
+      </footer>
+    </main>
   );
 }
