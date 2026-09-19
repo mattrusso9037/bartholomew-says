@@ -4,68 +4,118 @@ export type Quote = {
   legacyId?: string;
   text: string;
   book: "The Knight and the Moth" | "The Knave and the Moon";
+  chapter?: number;
+  page?: number;
 };
 
 /**
- * Temporary local quote dataset.
- * Note: These are placeholder quotations for development and will be replaced
- * with manually verified quotes from the books later.
+ * Bartholomew quotations sourced from the books.
+ * Only quotes with confirmed IDs in the quote database are included.
  */
 export const quotes: Quote[] = [
   {
     id: 1,
-    slug: "folly-of-mortals",
-    legacyId: "placeholder-1",
-    text: "Placeholder Bartholomew quote regarding the unbearable folly of mortals and the distinct superiority of stone.",
+    text: "Fear not, Bartholomew! Every day has its dog.",
     book: "The Knight and the Moth",
+    chapter: 12,
+    page: 147,
   },
   {
     id: 2,
-    slug: "placed-gargoyle",
-    legacyId: "placeholder-2",
-    text: "Placeholder Bartholomew quote on why swords are exceedingly clumsy when compared to a properly placed gargoyle.",
+    text: "I confess horses are not the intelligent beasts I imagined them to be. Though I don't think that merits the abuse they suffer postmortem.",
     book: "The Knight and the Moth",
+    chapter: 12,
+    page: 143,
   },
   {
     id: 3,
-    slug: "nocturnal-beasts",
-    legacyId: "placeholder-3",
-    text: "Placeholder Bartholomew quote lamenting the lack of polite conversation among nocturnal beasts and errant knights.",
-    book: "The Knave and the Moon",
+    text: "Bartholomew does not know how to swim. But worry not—She has always excelled at drowning.",
+    book: "The Knight and the Moth",
+    chapter: 19,
+    page: 244,
   },
   {
     id: 4,
-    slug: "obvious-ambushes",
-    legacyId: "placeholder-4",
-    text: "Placeholder Bartholomew quote on the curious tendency of heroes to walk directly into the most obvious ambushes.",
+    text: "Oh, Bartholomew. He's dreamy.",
     book: "The Knight and the Moth",
+    chapter: 16,
+    page: 202,
   },
   {
     id: 5,
-    slug: "stolen-secrets",
-    legacyId: "placeholder-5",
-    text: "Placeholder Bartholomew quote regarding the Moon, stolen secrets, and why one should never trust a thief who smiles.",
-    book: "The Knave and the Moon",
+    text: "I am years beyond my wisdom.",
+    book: "The Knight and the Moth",
+    chapter: 26,
+    page: 318,
   },
   {
     id: 6,
-    slug: "damp-stone",
-    legacyId: "placeholder-6",
-    text: "Placeholder Bartholomew quote observing that history is mostly just damp stone and people making very poor choices.",
+    text: "It is important for a squire to carry a knight's weapons. I will carry them for you, Bartholomew. I will shoulder any weight you give me.",
     book: "The Knight and the Moth",
+    chapter: 20,
+    page: 246,
   },
   {
     id: 7,
-    slug: "moth-and-candle",
-    legacyId: "placeholder-7",
-    text: "Placeholder Bartholomew quote advising that if a moth knows where the candle is, it has already outsmarted the knave.",
-    book: "The Knave and the Moon",
+    text: "Don't worry, Bartholomew. If you accidentally kill her, I will not be upset.",
+    book: "The Knight and the Moth",
+    chapter: 18,
+    page: 227,
   },
   {
     id: 8,
-    slug: "four-hundred-years",
-    legacyId: "placeholder-8",
-    text: "Placeholder Bartholomew quote reminding everyone that sitting still for four hundred years requires extraordinary discipline.",
+    text: "How undignified. Did anyone see me fall?",
     book: "The Knight and the Moth",
+    chapter: 15,
+    page: 193,
+  },
+  {
+    id: 9,
+    text: "Do something, Bartholomew! Bite off his leg if you must!",
+    book: "The Knight and the Moth",
+    chapter: 15,
+    page: 195,
+  },
+  {
+    id: 10,
+    text: "Sometimes, Bartholomew, I think her quite the bitch.",
+    book: "The Knight and the Moth",
+    chapter: 7,
+    page: 75,
+  },
+  {
+    id: 11,
+    text: "Overhead, the gargoyle was soaring and spinning, bidding \"welfare\" instead of \"farewell\" to the fading night.",
+    book: "The Knight and the Moth",
+    chapter: 10,
+    page: 113,
+  },
+  {
+    id: 12,
+    text: "By the seat of my skirts.",
+    book: "The Knight and the Moth",
+    chapter: 23,
+    page: 289,
+  },
+  {
+    id: 13,
+    text: "I say, Bartholomew. Is a road still a road if no one rode upon it?",
+    book: "The Knight and the Moth",
+    chapter: 15,
+    page: 187,
+  },
+  {
+    id: 14,
+    text: "If you wish to divine before the bitch—excuse me—before the abbess arrives, beest get cracking.",
+    book: "The Knight and the Moth",
+    chapter: 7,
+    page: 75,
+  },
+  {
+    id: 15,
+    text: "Oh, Bartholomew.",
+    book: "The Knight and the Moth",
+    chapter: 10,
+    page: 121,
   },
 ];

@@ -11,13 +11,14 @@ import { SleepingBlanket } from "./SleepingBlanket";
 
 export interface BartholomewProps {
   reactionTrigger?: number;
+  sleepTrigger?: number;
   reducedMotion?: boolean;
   compact?: boolean;
   onInteract?: () => void;
   onPhaseChange?: (phase: CharacterPhase) => void;
 }
 
-export function Bartholomew({ reactionTrigger = 0, reducedMotion = false, compact = false, onInteract, onPhaseChange }: BartholomewProps) {
+export function Bartholomew({ reactionTrigger = 0, sleepTrigger = 0, reducedMotion = false, compact = false, onInteract, onPhaseChange }: BartholomewProps) {
   const gltf = useGLTF("/models/bartholomew-animated.glb");
   const body = useRef<Group>(null);
   const pointer = useRef(new Vector2());
@@ -28,6 +29,7 @@ export function Bartholomew({ reactionTrigger = 0, reducedMotion = false, compac
   const wakeBlending = useRef(false);
   const phase = useRef<CharacterPhase>("seated");
   const trigger = useRef(reactionTrigger);
+  const sleepRequest = useRef(sleepTrigger);
   const reaction = useRef(5);
   const actions = useRef<Record<string, AnimationAction>>({});
   const rig = useMemo(() => {
@@ -135,15 +137,20 @@ export function Bartholomew({ reactionTrigger = 0, reducedMotion = false, compac
   }, [compact, reducedMotion]);
 
   useFrame((_, rawDelta) => {
-    if (reducedMotion) return;
-    const delta = Math.min(rawDelta, 0.05);
+    const requestedSleep = sleepTrigger !== sleepRequest.current;
+    if (reducedMotion && !requestedSleep) return;
+    const delta = reducedMotion ? 0 : Math.min(rawDelta, 0.05);
     if (reactionTrigger !== trigger.current) {
       trigger.current = reactionTrigger;
       director.current?.requestAttention();
       reaction.current = 0;
     }
     reaction.current = Math.min(5, reaction.current + delta);
-    const next = director.current?.update(delta);
+    if (requestedSleep) {
+      sleepRequest.current = sleepTrigger;
+      director.current?.requestSleep();
+    }
+    const next = director.current?.update(delta, reducedMotion);
     if (next) {
       const previousPhase = phase.current;
       phase.current = next;
@@ -151,6 +158,10 @@ export function Bartholomew({ reactionTrigger = 0, reducedMotion = false, compac
       const name = next === "seated" ? "Seated" : next === "drowsy" ? "Drowsy" : next === "stretching" || next === "settling" ? "Settle" : "CurlUp";
       const action = actions.current[name];
       if (next === "sleeping") {
+        if (reducedMotion) {
+          rig.mixer.stopAllAction();
+          action.reset().setEffectiveWeight(1).play();
+        }
         action.time = action.getClip().duration;
         action.paused = true;
       } else if (next === "seated" && previousPhase === "waking" && wakeBlending.current) {

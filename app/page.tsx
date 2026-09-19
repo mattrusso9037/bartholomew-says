@@ -3,7 +3,8 @@
 import { useState, useEffect, useCallback } from "react";
 import Image from "next/image";
 import dynamic from "next/dynamic";
-import { Moon, Pause, Play } from "lucide-react";
+import { Moon } from "lucide-react";
+import { AnimatePresence, motion } from "framer-motion";
 import { quotes, type Quote } from "@/data/quotes";
 import {
   getQuoteById,
@@ -16,6 +17,8 @@ import {
 import { usePrefersReducedMotion } from "@/lib/useReducedMotion";
 import { QuoteDisplay } from "@/components/quote/QuoteDisplay";
 import { QuoteActions } from "@/components/quote/QuoteActions";
+import { CathedralArrival } from "@/components/scene/CathedralArrival";
+import type { CharacterPhase } from "@/lib/character-motion";
 
 const BartholomewScene = dynamic(() => import("@/components/scene/BartholomewScene"), { ssr: false, loading: () => null });
 
@@ -37,6 +40,14 @@ export default function Home() {
   const [reactionTrigger, setReactionTrigger] = useState(0);
   const [isTransitioning, setIsTransitioning] = useState(false);
   const [paused, setPaused] = useState(false);
+  const [sceneReady, setSceneReady] = useState(false);
+  const [sceneUnavailable, setSceneUnavailable] = useState(false);
+  const [backdropReady, setBackdropReady] = useState(false);
+  const [arrivalDone, setArrivalDone] = useState(false);
+  const [entered, setEntered] = useState(false);
+  const [sleepTrigger, setSleepTrigger] = useState(0);
+  const [sleepPending, setSleepPending] = useState(false);
+  const [characterPhase, setCharacterPhase] = useState<CharacterPhase>("seated");
   const prefersReducedMotion = usePrefersReducedMotion();
   const reducedMotion = prefersReducedMotion || paused;
 
@@ -113,11 +124,31 @@ export default function Home() {
   }, [isTransitioning, currentQuote.id]);
 
   const onQuoteSettled = useCallback(() => setIsTransitioning(false), []);
+  const onSceneReady = useCallback(() => setSceneReady(true), []);
+  const onSceneUnavailable = useCallback(() => setSceneUnavailable(true), []);
+  const onBackdropReady = useCallback(() => setBackdropReady(true), []);
+  const onArrivalComplete = useCallback(() => setArrivalDone(true), []);
+  const onPhaseChange = useCallback((phase: CharacterPhase) => {
+    setCharacterPhase(phase);
+    if (phase === "curling" || phase === "sleeping") setSleepPending(false);
+  }, []);
+  const resting = characterPhase === "curling" || characterPhase === "sleeping" || characterPhase === "waking";
+  const sleepLabel = characterPhase === "sleeping" ? "Dreaming peacefully" : characterPhase === "waking" ? "Waking gently…" : sleepPending || characterPhase === "curling" ? "Tucking in…" : "Tuck me in";
+  const tuckIn = () => {
+    if (!sceneReady || sleepPending || resting) return;
+    setPaused(false);
+    setSleepPending(true);
+    setSleepTrigger(value => value + 1);
+  };
 
   return (
-    <main className="cathedral" data-motion={reducedMotion ? "still" : "animated"}>
+    <>
+    <AnimatePresence onExitComplete={() => setEntered(true)}>
+      {!arrivalDone && <CathedralArrival key="arrival" ready={backdropReady && (sceneReady || sceneUnavailable)} reducedMotion={prefersReducedMotion} onComplete={onArrivalComplete} />}
+    </AnimatePresence>
+    <main className="cathedral" inert={!entered} aria-busy={!arrivalDone} data-motion={reducedMotion ? "still" : "animated"}>
       <div className="cathedral-backdrop" aria-hidden="true">
-        <Image src="/backgrounds/gothic-chamber.jpg" alt="" fill preload sizes="100vw" className="cathedral-image" />
+        <Image src="/backgrounds/gothic-chamber.jpg" alt="" fill preload sizes="100vw" className="cathedral-image" onLoad={onBackdropReady} onError={onBackdropReady} />
       </div>
       <div className="cathedral-shade" aria-hidden="true" />
       <div className="cathedral-haze" aria-hidden="true" />
@@ -136,37 +167,39 @@ export default function Home() {
       </header>
 
       <section className="quote-section" aria-label="Current quote">
-        <div className="eyebrow"><span /> Stone wings. Strong opinions.</div>
         <QuoteDisplay quote={currentQuote} reducedMotion={reducedMotion} onSettled={onQuoteSettled} />
         <QuoteActions
           quote={currentQuote}
           onNextQuote={handleNextQuote}
           isTransitioning={isTransitioning}
           reachedEnd={reachedEnd}
-          seenCount={seenIds.length}
-          totalCount={quotes.length}
           onResetQuotes={handleResetQuotes}
         />
       </section>
 
       <BartholomewScene
         reactionTrigger={reactionTrigger}
+        sleepTrigger={sleepTrigger}
         reducedMotion={reducedMotion}
         onInteract={reachedEnd ? handleResetQuotes : handleNextQuote}
+        onReady={onSceneReady}
+        onUnavailable={onSceneUnavailable}
+        onPhaseChange={onPhaseChange}
       />
-      <div className="character-caption" aria-hidden="true">
-        <span className="caption-rule" />
+      <div className="character-caption">
+        <span className="caption-rule" aria-hidden="true" />
         <p>Bartholomew</p>
-        <span>Excellent company. Allegedly.</span>
+        <span className="character-aside">Excellent company. Allegedly.</span>
+        <motion.button type="button" className="tuck-in" onClick={tuckIn} disabled={!sceneReady || sleepPending || resting} whileHover={reducedMotion ? undefined : { y: -1 }} whileTap={reducedMotion ? undefined : { scale: .97 }}>
+          <Moon size={13} strokeWidth={1.2} aria-hidden="true" />{sleepLabel}
+        </motion.button>
+        <span className="sr-only" role="status" aria-live="polite">{resting || sleepPending ? sleepLabel : ""}</span>
       </div>
 
       <footer className="colophon">
         <span>The Knight &amp; The Moth <i>Series</i></span>
-        <span className="colophon-aside">“silence is preferable to nonsense”</span>
-        <button type="button" className="motion-toggle" aria-label={paused ? "Resume atmosphere" : "Pause atmosphere"} aria-pressed={paused} disabled={prefersReducedMotion} onClick={() => setPaused((value) => !value)}>
-          {reducedMotion ? <Play size={12} /> : <Pause size={12} />}<span>{reducedMotion ? "Stillness" : "Atmosphere"}</span>
-        </button>
       </footer>
     </main>
+    </>
   );
 }

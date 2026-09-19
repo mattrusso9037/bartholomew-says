@@ -1,6 +1,6 @@
 "use client";
 
-import { Component, useEffect, useState, useSyncExternalStore, Suspense, useRef, useMemo, type ReactNode } from "react";
+import { Component, useCallback, useEffect, useState, useSyncExternalStore, Suspense, useRef, useMemo, type ReactNode } from "react";
 import { Canvas, useFrame, useThree } from "@react-three/fiber";
 import { ACESFilmicToneMapping, PCFShadowMap, Vector3 } from "three";
 import { SceneLighting } from "./SceneLighting";
@@ -13,8 +13,12 @@ import type { CharacterPhase } from "@/lib/character-motion";
 
 interface SceneProps {
   reactionTrigger: number;
+  sleepTrigger?: number;
   reducedMotion?: boolean;
   onInteract?: () => void;
+  onReady?: () => void;
+  onUnavailable?: () => void;
+  onPhaseChange?: (phase: CharacterPhase) => void;
 }
 const compactQuery = "(max-width: 760px)";
 function subscribeCompact(callback: () => void) {
@@ -80,21 +84,35 @@ function CameraController({
   return null;
 }
 
-class SceneBoundary extends Component<{ children: ReactNode }, { failed: boolean }> {
+function SceneReady({ onReady }: { onReady?: () => void }) {
+  useEffect(() => {
+    let second = 0;
+    const first = requestAnimationFrame(() => { second = requestAnimationFrame(() => onReady?.()); });
+    return () => { cancelAnimationFrame(first); cancelAnimationFrame(second); };
+  }, [onReady]);
+  return null;
+}
+
+class SceneBoundary extends Component<{ children: ReactNode; onUnavailable?: () => void }, { failed: boolean }> {
   state = { failed: false };
   static getDerivedStateFromError() { return { failed: true }; }
-  componentDidCatch(error: Error) { console.error("The decorative diorama could not load:", error); }
+  componentDidCatch(error: Error) { console.error("The decorative diorama could not load:", error); this.props.onUnavailable?.(); }
   render() { return this.state.failed ? null : this.props.children; }
 }
 
 export default function BartholomewScene({
   reactionTrigger,
+  sleepTrigger = 0,
   reducedMotion = false,
   onInteract,
+  onReady,
+  onUnavailable,
+  onPhaseChange,
 }: SceneProps) {
   const [visible, setVisible] = useState(true);
   const compact = useSyncExternalStore(subscribeCompact, () => window.matchMedia(compactQuery).matches, () => false);
   const [phase, setPhase] = useState<CharacterPhase>("seated");
+  const handlePhase = useCallback((next: CharacterPhase) => { setPhase(next); onPhaseChange?.(next); }, [onPhaseChange]);
   const resting = phase === "curling" || phase === "sleeping" || phase === "waking";
   const mode = resting ? "sleeping" : "sitting";
 
@@ -107,7 +125,7 @@ export default function BartholomewScene({
 
   return (
     <div className="diorama" aria-hidden="true" data-character-phase={phase}>
-      <SceneBoundary>
+      <SceneBoundary onUnavailable={onUnavailable}>
         <Canvas
           camera={{ fov: 34, position: [0, 2.55, 6.7], near: 0.1, far: 20 }}
           dpr={compact ? [1, 1.25] : [1, 1.65]}
@@ -115,18 +133,20 @@ export default function BartholomewScene({
           gl={{ alpha: true, antialias: true, powerPreference: "low-power", toneMapping: ACESFilmicToneMapping }}
           frameloop={!visible ? "never" : reducedMotion ? "demand" : "always"}
           onCreated={({ camera, gl }) => { camera.lookAt(0, 0.92, 0); gl.setClearColor(0x000000, 0); gl.toneMappingExposure = 1.05; }}
-          fallback={<span />}
+          fallback={<SceneReady onReady={onUnavailable} />}
         >
           <CameraController mode={mode} reducedMotion={reducedMotion} compact={compact} />
           <Suspense fallback={null}>
+            <SceneReady onReady={onReady} />
             <group rotation={[0, -0.22, 0]}>
               <SceneLighting reducedMotion={reducedMotion} compact={compact} />
               <Books />
               <Plants reducedMotion={reducedMotion} compact={compact} />
               <Bartholomew
                 compact={compact}
-                onPhaseChange={setPhase}
+                onPhaseChange={handlePhase}
                 reactionTrigger={reactionTrigger}
+                sleepTrigger={sleepTrigger}
                 reducedMotion={reducedMotion}
                 onInteract={onInteract}
               />

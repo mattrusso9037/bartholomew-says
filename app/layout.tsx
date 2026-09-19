@@ -16,7 +16,15 @@ const inter = Inter({
   display: "swap",
 });
 
+const siteUrl =
+  process.env.NEXT_PUBLIC_SITE_URL ||
+  (process.env.VERCEL_PROJECT_PRODUCTION_URL
+    ? `https://${process.env.VERCEL_PROJECT_PRODUCTION_URL}`
+    : undefined) ||
+  (process.env.VERCEL_URL ? `https://${process.env.VERCEL_URL}` : undefined);
+
 export const metadata: Metadata = {
+  ...(siteUrl ? { metadataBase: new URL(siteUrl) } : {}),
   title: "Bartholomew Says",
   description: "An unnecessarily dramatic collection of Bartholomew wisdom.",
   icons: {
@@ -26,11 +34,27 @@ export const metadata: Metadata = {
     title: "Bartholomew Says",
     description: "An unnecessarily dramatic collection of Bartholomew wisdom.",
     type: "website",
+    images: [
+      {
+        url: "/og-image.png",
+        width: 1672,
+        height: 941,
+        alt: "Bartholomew Says",
+      },
+    ],
   },
   twitter: {
     card: "summary_large_image",
     title: "Bartholomew Says",
     description: "An unnecessarily dramatic collection of Bartholomew wisdom.",
+    images: [
+      {
+        url: "/og-image.png",
+        width: 1672,
+        height: 941,
+        alt: "Bartholomew Says",
+      },
+    ],
   },
 };
 

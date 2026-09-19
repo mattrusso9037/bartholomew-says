@@ -6,13 +6,24 @@ export class CharacterDirector {
   elapsed = 0;
   duration = 20;
   private wakeRequested = false;
+  private sleepRequested = false;
   private lastVisit: "drowsy" | "curling" | "stretching" = "drowsy";
   constructor(private random: () => number, private curlDuration: number, private drowsyDuration: number, private settleDuration: number, private wakeDuration = curlDuration) {
     this.duration = this.rest(14, 22);
   }
   private rest(min: number, max: number) { return min + this.random() * (max - min); }
   requestAttention() { this.wakeRequested = true; }
-  update(delta: number): CharacterPhase | null {
+  requestSleep() {
+    if (this.phase === "curling" || this.phase === "sleeping") return;
+    this.sleepRequested = true;
+    this.wakeRequested = false;
+  }
+  update(delta: number, reducedMotion = false): CharacterPhase | null {
+    if (this.sleepRequested && (reducedMotion || (this.phase !== "waking" && this.phase !== "settling"))) {
+      this.sleepRequested = false;
+      this.lastVisit = "curling";
+      return this.enter(reducedMotion ? "sleeping" : "curling");
+    }
     this.elapsed += Math.min(Math.max(delta, 0), 0.05);
     if (this.phase === "sleeping" && this.wakeRequested && this.elapsed > 5) this.duration = this.elapsed;
     if (this.elapsed < this.duration) return null;
@@ -32,6 +43,9 @@ export class CharacterDirector {
       case "stretching": next = "settling"; break;
       case "settling": next = "seated"; break;
     }
+    return this.enter(next);
+  }
+  private enter(next: CharacterPhase): CharacterPhase {
     this.phase = next;
     this.elapsed = 0;
     this.duration = next === "seated" ? this.rest(18, 34)

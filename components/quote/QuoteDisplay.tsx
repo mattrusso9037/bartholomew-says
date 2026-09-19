@@ -26,10 +26,10 @@ export function QuoteDisplay({ quote, reducedMotion = false, onSettled }: {
           onAnimationComplete={(definition) => { if (definition === "visible") onSettled?.(); }}
           className="quote-content"
         >
-          <blockquote aria-label={`“${quote.text}”`}><p aria-hidden="true">{`“${quote.text}”`.split(" ").map((word, index) => (
-            <span key={`${quote.id}-${index}`}><motion.span className="quote-word" variants={{ hidden: { opacity: 0, y: reducedMotion ? 0 : 6 }, visible: { opacity: 1, y: 0 }, exit: { opacity: 0 } }} transition={{ duration: reducedMotion ? .12 : .65, ease: [.22,1,.36,1] }}>{word}</motion.span>{" "}</span>
+          <blockquote aria-label={`${quote.text}`}><p aria-hidden="true">{`${quote.text}`.split(" ").map((word, index) => (
+            <span key={`${quote.id}-${index}`}><motion.span className="quote-word" variants={{ hidden: { opacity: 0, y: reducedMotion ? 0 : 6 }, visible: { opacity: 1, y: 0 }, exit: { opacity: 0 } }} transition={{ duration: reducedMotion ? .12 : .65, ease: [.22, 1, .36, 1] }}>{word}</motion.span>{" "}</span>
           ))}</p></blockquote>
-          <motion.div variants={{ hidden: { opacity: 0 }, visible: { opacity: 1, transition: { delay: reducedMotion ? 0 : .28, duration: .65 } } }}><Attribution book={quote.book} /></motion.div>
+          <motion.div variants={{ hidden: { opacity: 0 }, visible: { opacity: 1, transition: { delay: reducedMotion ? 0 : .28, duration: .65 } } }}><Attribution book={quote.book} chapter={quote.chapter} page={quote.page} /></motion.div>
         </motion.div>
       </AnimatePresence>
     </div>

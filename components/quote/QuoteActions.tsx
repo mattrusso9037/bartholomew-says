@@ -9,8 +9,6 @@ export interface QuoteActionsProps {
   onNextQuote: () => void;
   isTransitioning: boolean;
   reachedEnd?: boolean;
-  seenCount?: number;
-  totalCount?: number;
   onResetQuotes?: () => void;
 }
 
@@ -19,12 +17,9 @@ export function QuoteActions({
   onNextQuote,
   isTransitioning,
   reachedEnd = false,
-  seenCount = 1,
-  totalCount = 8,
   onResetQuotes,
 }: QuoteActionsProps) {
   const handlePrimaryClick = reachedEnd && onResetQuotes ? onResetQuotes : onNextQuote;
-  const safeSeenCount = Math.max(1, seenCount);
 
   return (
     <div className="quote-actions">
@@ -41,8 +36,8 @@ export function QuoteActions({
       >
         <span>
           {reachedEnd
-            ? "He has exhausted his grievances. Begin anew."
-            : "Unfortunately, he has more to say"}
+            ? "I've said all I have to say. For now."
+            : "Oh, but I have more to say"}
         </span>
         {reachedEnd ? (
           <RotateCcw size={16} strokeWidth={1.4} aria-hidden="true" />
@@ -53,18 +48,6 @@ export function QuoteActions({
 
       <div className="quote-actions-secondary">
         <ShareButton key={quote.id} quote={quote} disabled={isTransitioning} />
-        {totalCount > 0 && (
-          <span
-            className="quote-counter"
-            aria-live="polite"
-            title={reachedEnd ? "All grievances heard" : `${safeSeenCount} of ${totalCount} grievances heard`}
-          >
-            <span className={`quote-counter-dot ${reachedEnd ? "is-complete" : ""}`} aria-hidden="true" />
-            <span>
-              {reachedEnd ? `All ${totalCount} grievances heard` : `${safeSeenCount} of ${totalCount} heard`}
-            </span>
-          </span>
-        )}
       </div>
     </div>
   );

@@ -14,6 +14,9 @@ Quotes and attribution live in `data/quotes.ts`. Quote selection and sharing rem
 
 ## Scene and motion
 
+- `CathedralArrival.tsx` provides the initial moonlit SVG reveal while scene assets and the background load. Its arched door outline advances deterministically to 95%, then completes and zooms into the cathedral when the scene is ready. A 12-second fallback prevents the page from getting stuck if an asset fails to settle.
+- The caption's **Tuck me in** button requests the existing sleep sequence without changing the quote. It reports settling/sleeping states and selects a still resting pose when reduced motion is enabled.
+
 - `lib/character-motion.ts` schedules long rests between seated, drowsy, stretching, and sleeping sequences. Adjacent visits never repeat. Sleeping reverses the curl clip to wake; stretching reverses the final sitting segment, then plays it forward to settle.
 - `Bartholomew.tsx` owns animation blending, root-motion normalization, head stabilization, and pupil tracking. The supplied mesh has no eye bones, so the pupil effect adjusts the original texture locally within the eye sockets.
 - `SleepingBlanket.tsx` fits a small cloth height field over the body with a curved neckline behind the head. `lib/blanket-motion.ts` times its arrival during descent and keeps it on the book briefly after waking. The curl clip is trimmed to its moving section; the reversed rise blends into the seated idle. Breathing and small edge ripples animate the woven velvet material.

@@ -74,6 +74,38 @@ test("the shortened reverse clip has its own wake duration", () => {
   assert.equal(director.phase, "seated");
 });
 
+test("tuck-in requests start sleep immediately without changing the quote flow", () => {
+  const director = new CharacterDirector(() => 0.99, 6.4, 30, 3, 4.7);
+  director.requestAttention();
+  director.requestSleep();
+  assert.equal(director.update(0), "curling");
+  advance(director, 7);
+  assert.equal(director.phase, "sleeping");
+  advance(director, 6);
+  assert.equal(director.phase, "sleeping", "tuck-in clears an earlier wake request");
+  director.requestSleep();
+  assert.equal(director.update(0), null, "repeated clicks cannot restart sleep");
+});
+
+test("a tuck-in during a rise waits for the current movement to finish", () => {
+  const director = new CharacterDirector(() => 0, 6.4, 30, 3, 4.7);
+  director.requestSleep();
+  director.update(0);
+  advance(director, 31);
+  assert.equal(director.phase, "waking");
+  director.requestSleep();
+  assert.equal(director.update(0), null);
+  const phases = advance(director, 5);
+  assert.deepEqual(phases, ["seated", "curling"]);
+});
+
+test("reduced-motion tuck-in selects a still sleeping pose", () => {
+  const director = new CharacterDirector(() => 0, 6.4, 30, 3, 4.7);
+  director.requestSleep();
+  assert.equal(director.update(0, true), "sleeping");
+  assert.equal(director.elapsed, 0);
+});
+
 test("the blanket arrives during descent and never appears on unrelated idles", () => {
   assert.equal(blanketEnvelope("curling", 0.2, Infinity).opacity, 0);
   assert.ok(blanketEnvelope("curling", 0.35, Infinity).opacity > 0);

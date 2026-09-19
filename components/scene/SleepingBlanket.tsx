@@ -68,14 +68,15 @@ export function SleepingBlanket({ model, head, phase, amount, settle, reducedMot
     if (!cloth) return;
     if (!root.current) return;
     const opacity = amount.current;
+    const wasVisible = root.current.visible;
     root.current.visible = opacity > 0.005;
-    if (!root.current.visible || (reducedMotion && cloth.initialized)) return;
+    if (!root.current.visible || (reducedMotion && cloth.initialized && wasVisible)) return;
     const delta = reducedMotion ? 0 : Math.min(rawDelta, 0.05);
     elapsed.current += delta;
     sinceFit.current += delta;
     cloth.material.opacity = opacity;
     const fitting = phase.current === "curling" || phase.current === "sleeping";
-    if (fitting && (!cloth.initialized || sinceFit.current > (compact ? 0.24 : 0.14))) {
+    if (fitting && (reducedMotion || !cloth.initialized || sinceFit.current > (compact ? 0.24 : 0.14))) {
       sinceFit.current = 0;
       root.current.updateWorldMatrix(true, false);
       cloth.inverse.copy(root.current.matrixWorld).invert();
@@ -124,7 +125,7 @@ export function SleepingBlanket({ model, head, phase, amount, settle, reducedMot
       // book for a short beat, rather than levitating with his shoulders.
       const height = MathUtils.lerp(cloth.target[i], cloth.rest[i], settle.current);
       const target = height + breath + folds + flutter;
-      positions.setY(i, cloth.initialized ? MathUtils.damp(positions.getY(i), target, 6, delta) : target);
+      positions.setY(i, cloth.initialized && !reducedMotion ? MathUtils.damp(positions.getY(i), target, 6, delta) : target);
     }
     positions.needsUpdate = true;
     cloth.geometry.computeVertexNormals();
