@@ -118,4 +118,11 @@ export const quotes: Quote[] = [
     chapter: 10,
     page: 121,
   },
+  {
+    id: 16,
+    text: "Look, Bartholomew, Hair! Not one hair, a great many, and all upon an adorable little creature. I want to catch it and put it in my mouth and let it build a nest there.",
+    book: "The Knave and the Moon",
+    chapter: 3,
+    page: 23,
+  },
 ];

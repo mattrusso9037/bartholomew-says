@@ -24,6 +24,14 @@ const siteUrl =
   (process.env.VERCEL_URL ? `https://${process.env.VERCEL_URL}` : undefined);
 
 export const metadata: Metadata = {
+  robots: {
+    index: false,
+    follow: false,
+    googleBot: {
+      index: false,
+      follow: false,
+    },
+  },
   ...(siteUrl ? { metadataBase: new URL(siteUrl) } : {}),
   title: "Bartholomew Says",
   description: "An unnecessarily dramatic collection of Bartholomew wisdom.",
