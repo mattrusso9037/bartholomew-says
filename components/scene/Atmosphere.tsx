@@ -6,6 +6,7 @@ import { Points } from "three";
 
 export function Atmosphere({ compact, reducedMotion }: { compact: boolean; reducedMotion: boolean }) {
   const ref = useRef<Points>(null);
+  const time = useRef(0);
   const positions = useMemo(() => {
     const count = compact ? 12 : 32;
     return new Float32Array(Array.from({ length: count * 3 }, (_, i) => {
@@ -14,10 +15,11 @@ export function Atmosphere({ compact, reducedMotion }: { compact: boolean; reduc
       return i % 3 === 0 ? (n - 0.5) * 3.8 : i % 3 === 1 ? n * 2.9 : (n - 0.5) * 2;
     }));
   }, [compact]);
-  useFrame(({ clock }) => {
-    if (!ref.current) return;
-    ref.current.rotation.y = reducedMotion ? 0 : Math.sin(clock.elapsedTime * 0.035) * 0.12;
-    ref.current.position.y = reducedMotion ? 0 : Math.sin(clock.elapsedTime * 0.12) * 0.06;
+  useFrame((_, delta) => {
+    if (!ref.current || reducedMotion) return;
+    time.current += Math.min(delta, 0.05);
+    ref.current.rotation.y = Math.sin(time.current * 0.035) * 0.12;
+    ref.current.position.y = Math.sin(time.current * 0.12) * 0.06;
   });
   return (
     <points ref={ref}>

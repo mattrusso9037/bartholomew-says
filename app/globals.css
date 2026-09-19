@@ -36,6 +36,7 @@ button:disabled { cursor: default; }
 .quote-stage { position: relative; min-height: 295px; }
 .quotation-mark { position: absolute; top: -42px; left: -30px; font-size: 100px; line-height: 1; color: #bca47420; pointer-events: none; }
 .quote-content blockquote { margin: 0; }
+.quote-word { display: inline-block; }
 .quote-content blockquote p { margin: 0; font-size: clamp(35px, 3.35vw, 55px); font-weight: 400; line-height: 1.13; letter-spacing: -.024em; text-wrap: pretty; text-shadow: 0 2px 26px #0009; }
 .attribution { display: flex; align-items: center; gap: 17px; margin-top: 30px; }
 .attribution > span { width: 30px; height: 1px; background: #bda78080; }

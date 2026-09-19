@@ -1,51 +1,78 @@
 "use client";
 
-import { useMemo, useRef } from "react";
+import { useEffect, useMemo, useRef } from "react";
 import { useFrame } from "@react-three/fiber";
 import { useTexture } from "@react-three/drei";
-import { CatmullRomCurve3, DoubleSide, Group, SRGBColorSpace, Vector3 } from "three";
+import { mergeGeometries } from "three/addons/utils/BufferGeometryUtils.js";
+import { CatmullRomCurve3, Color, DoubleSide, InstancedMesh, Object3D, PlaneGeometry, SRGBColorSpace, TubeGeometry, Vector3 } from "three";
 
-const vines = [
-  [[-0.58, 0.5, 0.18], [-0.84, 0.31, 0.36], [-0.91, 0.14, 0.55], [-1.05, -0.11, 0.76], [-0.94, -0.50, 0.77], [-1.02, -0.73, 0.79]],
-  [[-0.72, 0.30, 0.30], [-1.04, 0.19, 0.12], [-1.24, 0.11, 0.28], [-1.38, -0.09, 0.47], [-1.34, -0.43, 0.62]],
-  [[0.5, 0.33, 0.27], [0.73, 0.21, 0.49], [0.92, 0.10, 0.48], [1.19, -0.09, 0.64], [1.10, -0.50, 0.77]],
-  [[0.67, 0.17, 0.31], [0.93, 0.10, 0.14], [1.22, 0.09, 0.10], [1.45, -0.13, 0.23]],
+const runners = [
+  [[-.57,.67,-.13],[-.79,.51,.18],[-.90,.27,.39],[-1.08,.08,.54],[-1.23,-.13,.71],[-1.17,-.52,.78],[-1.29,-.94,.81]],
+  [[-.91,.23,.21],[-1.15,.1,.12],[-1.40,.03,.34],[-1.50,-.24,.60],[-1.41,-.59,.66]],
+  [[-.70,.38,.38],[-.82,.19,.55],[-.77,-.03,.72],[-.57,-.14,.77],[-.51,-.43,.80]],
+  [[.59,.54,-.1],[.76,.33,.12],[.87,.19,.31],[1.06,.03,.51],[1.29,-.14,.62],[1.22,-.60,.74],[1.37,-.90,.79]],
+  [[.74,.2,.1],[1.07,.09,-.01],[1.35,.01,.10],[1.52,-.17,.27],[1.49,-.54,.43]],
+  [[.83,.15,.37],[.68,.04,.60],[.80,-.14,.75],[.72,-.40,.83]],
 ];
 
 export function Plants({ reducedMotion = false, compact = false }: { reducedMotion?: boolean; compact?: boolean }) {
-  const group = useRef<Group>(null);
-  const texture = useTexture("/textures/ivy.png", (map) => { map.colorSpace = SRGBColorSpace; });
-  const curves = useMemo(() => vines.map((points) => new CatmullRomCurve3(points.map((p) => new Vector3(...p)))), []);
-  const leaves = useMemo(() => curves.flatMap((curve, vine) => Array.from({ length: compact ? 9 : 14 }, (_, i) => {
-    const t = (i + 0.4) / (compact ? 9 : 14);
-    const p = curve.getPoint(t);
-    const side = i % 2 ? 1 : -1;
-    p.x += side * 0.067;
-    p.z += 0.035;
-    return { p, rotation: [0.10 + Math.sin(i * 3.2) * 0.45, Math.sin(i * 4.5) * 0.5, side * (0.5 + Math.sin(i * 1.7) * 0.3)] as [number, number, number], size: (0.20 + Math.sin(i * 2.3 + vine) * 0.045) * (1 - t * 0.26) };
-  })), [curves, compact]);
-  useFrame(({ clock }) => {
-    if (!group.current) return;
-    group.current.children.forEach((leaf, i) => {
-      leaf.rotation.z = leaves[i].rotation[2] + (reducedMotion ? 0 : Math.sin(clock.elapsedTime * 0.8 + i * 1.4) * 0.035);
+  const instances = useRef<InstancedMesh>(null);
+  const time = useRef(0);
+  const map = useTexture("/textures/ivy.png", texture => { texture.colorSpace = SRGBColorSpace; });
+  const foliage = useMemo(() => {
+    const stems: TubeGeometry[] = [];
+    const leaves: { p: Vector3; rotation: [number, number, number]; size: number; color: Color }[] = [];
+    runners.forEach((path, v) => {
+      const curve = new CatmullRomCurve3(path.map(p => new Vector3(...p)));
+      stems.push(new TubeGeometry(curve, 40, 0.006, 5));
+      const count = compact ? 8 : 13;
+      for (let i = 0; i < count; i++) {
+        const t = (i + .5) / count;
+        const center = curve.getPoint(t);
+        for (const side of [-1, 1]) {
+          const p = center.clone().add(new Vector3(side * (.08 + .015 * Math.sin(i)), -.025, .035));
+          const size = (.21 + Math.sin(i * 2.1 + v) * .036) * (1 - t * .36);
+          stems.push(new TubeGeometry(new CatmullRomCurve3([center, center.clone().lerp(p,.6).add(new Vector3(0,.01,0)), p]), 5, .0025, 3));
+          leaves.push({ p, size, rotation: [.20 + Math.sin(i * 2 + v) * .38, side * .28 + Math.sin(i * 1.3) * .38, side * (.65 + Math.sin(i * 2.4) * .3)], color: new Color().setHSL(.22 + Math.sin(i+v)*.025, .22, .57 + Math.sin(i*3+v)*.10) });
+        }
+      }
     });
+    const stem = mergeGeometries(stems);
+    stems.forEach(g => g.dispose());
+    const leaf = new PlaneGeometry(1, 1, 8, 8);
+    const pos = leaf.attributes.position;
+    for (let i = 0; i < pos.count; i++) {
+      const x=pos.getX(i),y=pos.getY(i);
+      pos.setZ(i, .11 * Math.sin((y+.5)*Math.PI) - .15 * x*x + .035 * Math.sin(x*6)*(y+.5));
+      pos.setY(i, y+.34);
+    }
+    leaf.computeVertexNormals();
+    return { leaf, stem, leaves, dummy: new Object3D() };
+  }, [compact]);
+  useEffect(() => {
+    foliage.leaves.forEach((leaf, i) => instances.current?.setColorAt(i, leaf.color));
+    if (instances.current?.instanceColor) instances.current.instanceColor.needsUpdate = true;
+    return () => { foliage.leaf.dispose(); foliage.stem.dispose(); };
+  }, [foliage]);
+  useFrame((_, delta) => {
+    if (!instances.current) return;
+    if (!reducedMotion) time.current += Math.min(delta,.05);
+    foliage.leaves.forEach((leaf, i) => {
+      const sway = Math.sin(time.current * .55 + i * .73) * .027;
+      foliage.dummy.position.copy(leaf.p);
+      foliage.dummy.rotation.set(leaf.rotation[0] + sway * .6, leaf.rotation[1] + sway, leaf.rotation[2] + sway * .7);
+      foliage.dummy.scale.setScalar(leaf.size);
+      foliage.dummy.updateMatrix();
+      instances.current!.setMatrixAt(i, foliage.dummy.matrix);
+    });
+    instances.current.instanceMatrix.needsUpdate = true;
   });
   return (
-    <group name="Trailing ivy">
-      {curves.map((curve, i) => (
-        <mesh key={i}>
-          <tubeGeometry args={[curve, 32, 0.006, 5, false]} />
-          <meshStandardMaterial color="#4b5030" roughness={1} />
-        </mesh>
-      ))}
-      <group ref={group}>
-        {leaves.map(({ p, rotation, size }, i) => (
-          <mesh key={i} position={p} rotation={rotation} scale={size}>
-            <planeGeometry args={[1, 1, 2, 2]} />
-            <meshStandardMaterial map={texture} alphaTest={0.4} side={DoubleSide} roughness={0.83} emissiveMap={texture} emissive="#61704a" emissiveIntensity={0.15} color={i % 3 ? "#c2c6a2" : "#8c9e75"} />
-          </mesh>
-        ))}
-      </group>
+    <group name="Cathedral ivy">
+      <mesh geometry={foliage.stem}><meshStandardMaterial color="#70694b" roughness={.95} /></mesh>
+      <instancedMesh ref={instances} args={[foliage.leaf, undefined, foliage.leaves.length]} frustumCulled={false} receiveShadow>
+        <meshStandardMaterial map={map} alphaTest={.4} side={DoubleSide} roughness={.69} emissiveMap={map} emissive="#91a774" emissiveIntensity={.20} />
+      </instancedMesh>
     </group>
   );
 }

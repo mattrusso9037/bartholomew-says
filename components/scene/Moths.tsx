@@ -4,13 +4,15 @@ import { useEffect, useMemo, useRef } from "react";
 import { useFrame } from "@react-three/fiber";
 import { useGLTF } from "@react-three/drei";
 import { Group, type Mesh, type MeshStandardMaterial } from "three";
+import { MothTrail } from "./MothTrail";
 
 const homes: [number, number, number][] = [[-0.96, 1.64, 0.45], [0.99, 1.85, 0.2], [-0.65, 0.66, 0.9], [0.81, 0.78, 0.8]];
 
-function Moth({ model, index, reactionTrigger, reducedMotion }: { model: Mesh; index: number; reactionTrigger: number; reducedMotion: boolean }) {
+function Moth({ model, index, reactionTrigger, reducedMotion, compact }: { model: Mesh; index: number; reactionTrigger: number; reducedMotion: boolean; compact: boolean }) {
   const root = useRef<Group>(null);
   const trigger = useRef(reactionTrigger);
   const progress = useRef(5);
+  const time = useRef(0);
   const flap = useRef({ value: 0.25 });
   const material = useMemo(() => {
     const material = (model.material as MeshStandardMaterial).clone();
@@ -27,21 +29,23 @@ function Moth({ model, index, reactionTrigger, reducedMotion }: { model: Mesh; i
     return material;
   }, [model.material]);
   useEffect(() => () => material.dispose(), [material]);
-  useFrame(({ clock }, delta) => {
+  useFrame((_, rawDelta) => {
     if (!root.current) return;
+    const delta = Math.min(rawDelta, .05);
+    if (!reducedMotion) time.current += delta;
     if (trigger.current !== reactionTrigger) { trigger.current = reactionTrigger; progress.current = 0; }
-    progress.current = Math.min(5, progress.current + Math.min(delta, 0.05));
+    if (!reducedMotion) progress.current = Math.min(5, progress.current + delta);
     const scatter = reducedMotion ? 0 : progress.current * Math.exp(-progress.current * 1.65) * 2.7;
-    const t = reducedMotion ? index * 2 : clock.elapsedTime * (0.42 + index * 0.07) + index * 2;
+    const t = time.current * (0.28 + index * 0.035) + index * 2;
     const home = homes[index];
     root.current.position.set(home[0] + Math.sin(t) * 0.2 + (index % 2 ? 1 : -1) * scatter * 0.5, home[1] + Math.cos(t * 1.3) * 0.13 + scatter * 0.5, home[2] + Math.sin(t * 0.8) * 0.18);
     root.current.rotation.set(Math.sin(t * 0.6) * 0.22, Math.sin(t * 0.8) * 0.55, Math.sin(t) * 0.2);
-    flap.current.value = reducedMotion ? 0.25 : Math.sin(clock.elapsedTime * (12 + index * 1.6) + index) * 0.65;
+    flap.current.value = Math.sin(time.current * (10 + index * 1.3) + index) * 0.65;
   });
-  return <group ref={root} position={homes[index]} scale={index === 0 ? 0.115 : 0.087}><mesh geometry={model.geometry} material={material} /></group>;
+  return <group><group ref={root} position={homes[index]} scale={index === 0 ? 0.115 : 0.087}><mesh geometry={model.geometry} material={material} /></group><MothTrail anchor={root} compact={compact} reducedMotion={reducedMotion} /></group>;
 }
 
 export function Moths({ reactionTrigger, reducedMotion = false, compact = false }: { reactionTrigger: number; reducedMotion?: boolean; compact?: boolean }) {
   const { nodes } = useGLTF("/models/silk-moth.glb");
-  return <group name="Silk moths">{homes.slice(0, compact ? 3 : 4).map((_, index) => <Moth key={index} model={nodes["silk-moth"] as Mesh} index={index} reactionTrigger={reactionTrigger} reducedMotion={reducedMotion} />)}</group>;
+  return <group name="Silk moths">{homes.slice(0, compact ? 3 : 4).map((_, index) => <Moth key={index} model={nodes["silk-moth"] as Mesh} index={index} reactionTrigger={reactionTrigger} reducedMotion={reducedMotion} compact={compact} />)}</group>;
 }
