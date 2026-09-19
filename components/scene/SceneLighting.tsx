@@ -1,21 +1,195 @@
 "use client";
 
-import { useMemo, useRef } from "react";
+import { useEffect, useMemo, useRef } from "react";
 import { useFrame, useThree } from "@react-three/fiber";
-import { Group, MathUtils, Mesh, PointLight, Vector2 } from "three";
+import {
+  AdditiveBlending,
+  DoubleSide,
+  LatheGeometry,
+  MathUtils,
+  Mesh,
+  MeshBasicMaterial,
+  PointLight,
+  ShaderMaterial,
+  Vector2,
+} from "three";
+
+const flameVertexShader = `
+  uniform float uTime;
+  uniform float uWarmth;
+  uniform float uFlicker;
+  varying vec2 vUv;
+  varying vec3 vPosition;
+  varying float vHeight;
+
+  void main() {
+    vUv = uv;
+    vec3 pos = position;
+    float h = clamp(pos.y / 0.112, 0.0, 1.0);
+    vHeight = h;
+
+    // Convection wave: sway and flutter increases non-linearly with height
+    float swayTime = uTime * 4.8;
+    float wave = sin(swayTime - pos.y * 18.0) * 0.013;
+    float jitter = (sin(uTime * 23.0) * 0.6 + sin(uTime * 41.0) * 0.4) * 0.0045;
+    float swayX = (wave + jitter) * pow(h, 1.55);
+    float swayZ = cos(swayTime * 0.85 - pos.y * 14.0) * 0.007 * pow(h, 1.75);
+
+    pos.x += swayX;
+    pos.z += swayZ;
+
+    // Organic breathing and warmth expansion
+    float stretch = 1.0 + uFlicker * 0.14 + uWarmth * 0.38;
+    float girth = 1.0 + uWarmth * 0.28 - uFlicker * 0.04;
+
+    pos.y *= stretch;
+    pos.x *= girth;
+    pos.z *= girth;
+
+    vPosition = pos;
+    gl_Position = projectionMatrix * modelViewMatrix * vec4(pos, 1.0);
+  }
+`;
+
+const flameFragmentShader = `
+  uniform float uTime;
+  uniform float uWarmth;
+  varying vec2 vUv;
+  varying vec3 vPosition;
+  varying float vHeight;
+
+  void main() {
+    float h = vHeight;
+    float r = length(vPosition.xz);
+    float normR = clamp(r / 0.022, 0.0, 1.0);
+
+    // Thermodynamic natural flame color spectrum:
+    vec3 blueRim   = vec3(0.12, 0.32, 0.98); // Complete combustion at oxygen-rich base
+    vec3 deepAmber = vec3(1.00, 0.38, 0.04); // Outer mantle
+    vec3 warmGold  = vec3(1.00, 0.78, 0.16); // Luminous mid body
+    vec3 whiteCore = vec3(1.00, 0.98, 0.90); // Incandescent white hot center
+
+    // Base blue zone: distinct at outer rim of lower 18% of flame
+    float blueFactor = (1.0 - smoothstep(0.0, 0.18, h)) * smoothstep(0.002, 0.016, r) * 0.95;
+
+    // Hot interior core (centered, mid-lower height)
+    float coreFactor = (1.0 - smoothstep(0.0, 0.011, r)) * (1.0 - smoothstep(0.05, 0.82, h));
+
+    // Vertical transition from amber to gold
+    vec3 body = mix(deepAmber, warmGold, smoothstep(0.10, 0.62, h));
+    body = mix(body, whiteCore, clamp(coreFactor * 1.5, 0.0, 1.0));
+    body = mix(body, blueRim, blueFactor);
+
+    // Alpha falloff
+    float radialFalloff = 1.0 - smoothstep(0.35, 1.0, normR);
+    float tipFalloff = 1.0 - smoothstep(0.88, 1.0, h);
+    float alpha = clamp(radialFalloff * tipFalloff * (0.85 + coreFactor * 0.35), 0.0, 1.0);
+
+    // Boost glow on warmth
+    gl_FragColor = vec4(body * (1.15 + uWarmth * 0.45), alpha);
+  }
+`;
+
+const flameCoreFragmentShader = `
+  uniform float uTime;
+  uniform float uWarmth;
+  varying vec3 vPosition;
+  varying float vHeight;
+
+  void main() {
+    float h = vHeight;
+    float r = length(vPosition.xz);
+    float normR = clamp(r / 0.014, 0.0, 1.0);
+
+    vec3 intenseWhite = vec3(1.00, 0.99, 0.94);
+    vec3 brightGold   = vec3(1.00, 0.88, 0.42);
+
+    vec3 color = mix(intenseWhite, brightGold, smoothstep(0.0, 0.8, normR));
+    float alpha = (1.0 - smoothstep(0.2, 1.0, normR)) * (1.0 - smoothstep(0.75, 1.0, h)) * (0.85 + uWarmth * 0.15);
+
+    gl_FragColor = vec4(color * (1.2 + uWarmth * 0.3), clamp(alpha, 0.0, 1.0));
+  }
+`;
 
 function Candle({ position, height, reducedMotion }: { position: [number, number, number]; height: number; reducedMotion: boolean }) {
-  const flame = useRef<Group>(null);
   const light = useRef<PointLight>(null);
   const halo = useRef<Mesh>(null);
   const hovered = useRef(false);
   const warmth = useRef(0);
   const time = useRef(height * 18);
   const invalidate = useThree(state => state.invalidate);
+
   const holder = useMemo(() => [
     [0, 0], [0.14, 0], [0.145, 0.023], [0.11, 0.04], [0.055, 0.06], [0.028, 0.095],
     [0.028, 0.16], [0.052, 0.18], [0.052, 0.20], [0.035, 0.215], [0.032, 0.27], [0.10, 0.29], [0.11, 0.31], [0.065, 0.32],
   ].map(([x, y]) => new Vector2(x, y)), []);
+
+  const flameMesh = useRef<Mesh>(null);
+  const coreMesh = useRef<Mesh>(null);
+
+  const flameGeometry = useMemo(() => {
+    const points = [
+      [0.000, 0.000],
+      [0.006, 0.004],
+      [0.014, 0.014],
+      [0.018, 0.030],
+      [0.016, 0.052],
+      [0.011, 0.076],
+      [0.005, 0.096],
+      [0.000, 0.112],
+    ].map(([x, y]) => new Vector2(x, y));
+    return new LatheGeometry(points, 28);
+  }, []);
+
+  const coreGeometry = useMemo(() => {
+    const points = [
+      [0.000, 0.000],
+      [0.004, 0.004],
+      [0.009, 0.012],
+      [0.011, 0.024],
+      [0.009, 0.040],
+      [0.006, 0.056],
+      [0.002, 0.068],
+      [0.000, 0.076],
+    ].map(([x, y]) => new Vector2(x, y));
+    return new LatheGeometry(points, 20);
+  }, []);
+
+  const flameMaterial = useMemo(() => new ShaderMaterial({
+    uniforms: {
+      uTime: { value: 0 },
+      uWarmth: { value: 0 },
+      uFlicker: { value: 0 },
+    },
+    vertexShader: flameVertexShader,
+    fragmentShader: flameFragmentShader,
+    transparent: true,
+    depthWrite: false,
+    blending: AdditiveBlending,
+    side: DoubleSide,
+  }), []);
+
+  const coreMaterial = useMemo(() => new ShaderMaterial({
+    uniforms: {
+      uTime: { value: 0 },
+      uWarmth: { value: 0 },
+      uFlicker: { value: 0 },
+    },
+    vertexShader: flameVertexShader,
+    fragmentShader: flameCoreFragmentShader,
+    transparent: true,
+    depthWrite: false,
+    blending: AdditiveBlending,
+    side: DoubleSide,
+  }), []);
+
+  useEffect(() => () => {
+    flameGeometry.dispose();
+    coreGeometry.dispose();
+    flameMaterial.dispose();
+    coreMaterial.dispose();
+    document.body.style.cursor = "auto";
+  }, [flameGeometry, coreGeometry, flameMaterial, coreMaterial]);
 
   useFrame((_, delta) => {
     const clampedDelta = Math.min(delta, 0.05);
@@ -23,16 +197,24 @@ function Candle({ position, height, reducedMotion }: { position: [number, number
     const t = time.current;
     warmth.current = reducedMotion ? Number(hovered.current) : MathUtils.damp(warmth.current, Number(hovered.current), 5.5, clampedDelta);
     const flicker = reducedMotion ? 0 : Math.sin(t * 7.4) * 0.06 + Math.sin(t * 13.1) * 0.035;
-    if (flame.current) {
-      flame.current.scale.set(
-        1 + warmth.current * 0.65,
-        1 + flicker + warmth.current * 0.85,
-        1 + warmth.current * 0.65
-      );
-      flame.current.rotation.z = reducedMotion ? 0 : Math.sin(t * 4.8) * 0.055;
+
+    if (flameMesh.current) {
+      const mat = flameMesh.current.material as ShaderMaterial;
+      mat.uniforms.uTime.value = t;
+      mat.uniforms.uWarmth.value = warmth.current;
+      mat.uniforms.uFlicker.value = reducedMotion ? 0 : flicker;
     }
+
+    if (coreMesh.current) {
+      const mat = coreMesh.current.material as ShaderMaterial;
+      mat.uniforms.uTime.value = t;
+      mat.uniforms.uWarmth.value = warmth.current;
+      mat.uniforms.uFlicker.value = reducedMotion ? 0 : flicker;
+    }
+
     if (halo.current) {
-      (halo.current.material as import("three").MeshBasicMaterial).opacity = 0.25 + warmth.current * 0.55;
+      halo.current.scale.setScalar(0.045 * (1 + warmth.current * 0.75 + flicker * 0.15));
+      (halo.current.material as MeshBasicMaterial).opacity = 0.22 + warmth.current * 0.55 + flicker * 0.06;
     }
     if (light.current) {
       light.current.intensity = 1.7 + flicker * 2 + warmth.current * 7.8;
@@ -73,25 +255,29 @@ function Candle({ position, height, reducedMotion }: { position: [number, number
           <meshStandardMaterial color="#d3bf99" roughness={0.9} />
         </mesh>
       ))}
+
+      {/* Carbonized candle wick with glowing hot ember at tip */}
       <mesh position={[0, height + 0.335, 0]}>
-        <cylinderGeometry args={[0.004, 0.004, 0.035, 6]} />
-        <meshBasicMaterial color="#3b2816" />
+        <cylinderGeometry args={[0.0035, 0.0035, 0.035, 6]} />
+        <meshBasicMaterial color="#221810" />
       </mesh>
-      <group ref={flame} position={[0, height + 0.35, 0]}>
-        <mesh position={[0, 0.047, 0]} scale={[0.021, 0.063, 0.018]}>
+      <mesh position={[0, height + 0.353, 0]}>
+        <sphereGeometry args={[0.0038, 8, 8]} />
+        <meshBasicMaterial color="#ff3800" toneMapped={false} />
+      </mesh>
+
+      {/* Photorealistic teardrop flame with combustion zones and convection sway */}
+      <group position={[0, height + 0.351, 0]}>
+        <mesh ref={flameMesh} geometry={flameGeometry} material={flameMaterial} />
+        <mesh ref={coreMesh} geometry={coreGeometry} material={coreMaterial} position={[0, 0.002, 0]} />
+        {/* Radiant atmospheric warm amber halo */}
+        <mesh ref={halo} position={[0, 0.048, 0]}>
           <sphereGeometry args={[1, 16, 12]} />
-          <meshBasicMaterial color="#ffb950" transparent opacity={0.85} toneMapped={false} />
-        </mesh>
-        <mesh position={[0, 0.025, 0.009]} scale={[0.012, 0.033, 0.012]}>
-          <sphereGeometry args={[1, 12, 8]} />
-          <meshBasicMaterial color="#fff2c5" toneMapped={false} />
-        </mesh>
-        <mesh ref={halo} position={[0, 0.042, 0]} scale={[0.045, 0.085, 0.045]}>
-          <sphereGeometry args={[1, 16, 12]} />
-          <meshBasicMaterial color="#ff9c2b" transparent opacity={0.25} depthWrite={false} toneMapped={false} />
+          <meshBasicMaterial color="#ff9222" transparent opacity={0.24} depthWrite={false} blending={AdditiveBlending} toneMapped={false} />
         </mesh>
       </group>
-      <pointLight ref={light} position={[0, height + 0.41, 0]} color="#ffb765" intensity={1.8} distance={3.8} decay={2} />
+
+      <pointLight ref={light} position={[0, height + 0.40, 0]} color="#ffb765" intensity={1.8} distance={3.8} decay={2} />
     </group>
   );
 }
