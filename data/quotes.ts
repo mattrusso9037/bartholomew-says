@@ -112,13 +112,6 @@ export const quotes: Quote[] = [
     page: 75,
   },
   {
-    id: 15,
-    text: "Oh, Bartholomew.",
-    book: "The Knight and the Moth",
-    chapter: 10,
-    page: 121,
-  },
-  {
     id: 19,
     text: "You know this story, Bartholomew, though you do not remember it.",
     book: "The Knight and the Moth",
@@ -232,7 +225,7 @@ export const quotes: Quote[] = [
   },
   {
     id: 37,
-    text: "Did that man just call me foul, Bartholomew?... An even greater slander! I shall destroy his house.",
+    text: "Did that man just call me foul, Bartholomew? ... An even greater slander! I shall destroy his house.",
     book: "The Knight and the Moth",
     chapter: 10,
     page: 116,
