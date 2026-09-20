@@ -10,6 +10,9 @@ function Book({ mesh, position, rotation, scale, tint }: {
   const material = useMemo(() => {
     const copy = (mesh.material as MeshStandardMaterial).clone();
     copy.color.multiply(new Color(tint));
+    if (copy.map) copy.map.anisotropy = 8;
+    if (copy.normalMap) copy.normalMap.anisotropy = 8;
+    if (copy.roughnessMap) copy.roughnessMap.anisotropy = 8;
     return copy;
   }, [mesh.material, tint]);
   useEffect(() => () => material.dispose(), [material]);

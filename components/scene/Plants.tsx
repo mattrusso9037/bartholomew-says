@@ -24,6 +24,8 @@ export function Plants({
           const mat = (mesh.material as MeshStandardMaterial).clone();
           mat.roughness = 0.88;
           mat.metalness = 0.04;
+          if (mat.map) mat.map.anisotropy = 8;
+          if (mat.normalMap) mat.normalMap.anisotropy = 8;
           mesh.material = mat;
         }
       }

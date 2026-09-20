@@ -96,28 +96,131 @@ button:disabled { cursor: default; }
 @media (min-width: 1600px) { .cathedral { padding-right: 8%; padding-left: 8%; } .quote-section { max-width: 710px; } .quote-stage { min-height: 350px; } }
 @media (max-width: 1100px) and (min-width: 761px) { .cathedral { padding-left: 5%; padding-right: 5%; } .quote-section { width: 52%; } .quote-content blockquote p { font-size: 39px; } .diorama { right: -10%; width: 65%; } .masthead-note { font-size: 8px; letter-spacing: .1em; } .next-quote { font-size: 15px; gap: 17px; } }
 @media (max-width: 760px) {
-  .cathedral { min-height: 100svh; padding: 32px 28px 24px; }
-  .page-frame { inset: 11px; }
+  .cathedral {
+    min-height: 100svh;
+    height: 100svh;
+    max-height: 100svh;
+    overflow-y: auto;
+    overflow-x: hidden;
+    padding: clamp(14px, 2.5svh, 24px) clamp(16px, 4.5vw, 24px) clamp(10px, 1.8svh, 16px);
+    display: flex;
+    flex-direction: column;
+    justify-content: space-between;
+  }
+  .page-frame { inset: 8px; }
   .cathedral-image { object-position: 43% center; }
-  .cathedral-shade { background: linear-gradient(180deg, #090e11a1 0%, #090e11bb 30%, #090e1155 67%, #090e11f5 100%), linear-gradient(90deg, #090e1180, transparent); }
-  .brand { gap: 11px; } .brand h1 { font-size: 25px; } .brand p { font-size: 11px; margin-top: 5px; } .brand-seal { width: 32px; height: 41px; }
+  .cathedral-shade {
+    background: linear-gradient(180deg, #090e11ba 0%, #090e11c7 35%, #090e1180 70%, #090e11fa 100%),
+                linear-gradient(90deg, #090e1180, transparent);
+  }
+  .brand { gap: 9px; }
+  .brand h1 { font-size: 20px; line-height: 1.1; }
+  .brand p { font-size: 10px; margin-top: 1px; letter-spacing: .02em; }
+  .brand-seal { width: 28px; height: 35px; border-radius: 16px 16px 2px 2px; }
+  .brand-seal svg { width: 15px; height: 15px; }
+  .masthead { order: 1; flex-shrink: 0; margin-bottom: 2px; }
   .masthead-note { display: none; }
-  .quote-section { width: 100%; max-width: 560px; margin: 0 auto; padding: 55px 0 0; }
-  .eyebrow { margin-bottom: 26px; font-size: 8px; letter-spacing: .18em; }
-  .quote-stage { min-height: 275px; }
-  .quote-content blockquote p { font-size: clamp(32px, 7.7vw, 43px); line-height: 1.12; }
-  .quotation-mark { top: -29px; left: -13px; font-size: 76px; }
-  .attribution { margin-top: 22px; gap: 13px; } .attribution cite { font-size: 18px; }
-  .quote-actions { margin-top: 25px; gap: 9px; }
-  .next-quote { width: 100%; font-size: 16px; padding: 15px 15px; gap: 13px; }
-  .share-quote { min-height: 36px; }
-  .diorama { position: relative; top: auto; right: auto; width: calc(100% + 56px); height: 420px; margin: -20px -28px -47px; flex-shrink: 0; }
-  .character-caption { position: relative; left: auto; bottom: auto; transform: none; margin: 0 0 29px; }
-  .caption-rule { margin-bottom: 8px; } .character-caption p { font-size: 21px; } .character-aside { font-size: 10px; }
-  .tuck-in { min-height: 44px; }
-  .arrival-emblem { width: 135px; height: 180px; margin-bottom: 24px; }
-  .colophon { margin-top: auto; gap: 8px; font-size: 7px; letter-spacing: .08em; justify-content: space-between; }
-  .colophon-aside { display: none; } .colophon i { font-size: 11px; } .motion-toggle { font-size: 7px; padding-left: 10px; }
+  .quote-section { display: contents; }
+  .quote-stage {
+    order: 2;
+    width: 100%;
+    max-width: 520px;
+    margin: 0 auto;
+    padding: clamp(4px, 1.2svh, 12px) 0 0;
+    min-height: auto;
+    flex-shrink: 0;
+  }
+  .eyebrow { display: none; }
+  .quote-content blockquote p {
+    font-size: clamp(17px, 4.3vw, 22px);
+    line-height: 1.2;
+    letter-spacing: -.018em;
+  }
+  .quotation-mark { top: -14px; left: -8px; font-size: 52px; opacity: 0.15; }
+  .attribution { margin-top: 8px; gap: 10px; }
+  .attribution > span { width: 20px; }
+  .attribution cite { font-size: 13.5px; }
+  .attribution-meta { gap: 8px; margin-top: 1px; }
+  .attribution-location, .attribution-author-line, .attribution-by, .attribution-author { font-size: 8px; }
+  .diorama {
+    order: 3;
+    position: relative;
+    top: auto;
+    right: auto;
+    width: calc(100% + 32px);
+    height: clamp(160px, 27svh, 225px);
+    margin: -4px -16px -16px;
+    flex-shrink: 1;
+  }
+  .character-caption {
+    order: 4;
+    position: relative;
+    left: auto;
+    bottom: auto;
+    transform: none;
+    margin: 0 auto 6px;
+    text-align: center;
+    flex-shrink: 0;
+  }
+  .caption-rule { display: block; width: 20px; height: 1px; background: #b4a27c35; margin: 0 auto 3px; }
+  .character-caption p { font-size: 15px; margin: 0; }
+  .character-aside { font-size: 9px; letter-spacing: .03em; color: #a4a69a; }
+  .tuck-in {
+    min-height: 28px;
+    margin: 4px auto 0;
+    padding: 3px 12px;
+    font-size: 11px;
+    gap: 5px;
+    border-radius: 14px;
+  }
+  .tuck-in svg { width: 11px; height: 11px; }
+  .quote-actions { display: contents; }
+  .next-quote {
+    order: 5;
+    width: 100%;
+    max-width: 520px;
+    margin: 0 auto 6px;
+    font-size: 13.5px;
+    padding: 9px 14px;
+    gap: 10px;
+    flex-shrink: 0;
+  }
+  .next-quote > svg { width: 15px; height: 15px; }
+  .quote-actions-secondary {
+    order: 6;
+    width: 100%;
+    max-width: 520px;
+    margin: 0 auto 6px;
+    display: flex;
+    align-items: center;
+    justify-content: flex-start;
+    gap: 12px;
+    flex-shrink: 0;
+  }
+  .share-quote { min-height: 26px; padding: 2px 0; font-size: 8.5px; gap: 7px; }
+  .share-quote svg { width: 12px; height: 12px; }
+  .arrival-emblem { width: 120px; height: 160px; margin-bottom: 20px; }
+  .colophon {
+    order: 7;
+    margin-top: 0;
+    padding-top: 6px;
+    gap: 8px;
+    font-size: 7px;
+    letter-spacing: .08em;
+    justify-content: space-between;
+    border-top: 1px solid #bcab8020;
+    flex-shrink: 0;
+  }
+  .colophon-aside { display: none; }
+  .colophon i { font-size: 10px; }
+  .motion-toggle { font-size: 7px; padding-left: 8px; }
 }
-@media (max-width: 370px) { .cathedral { padding-left: 23px; padding-right: 23px; } .brand h1 { font-size: 23px; } .brand p { font-size: 10px; } .next-quote { font-size: 14px; gap: 8px; } .diorama { width: calc(100% + 46px); margin-left: -23px; margin-right: -23px; height: 350px; } .quote-stage { min-height: 300px; } }
+@media (max-width: 370px) {
+  .cathedral { padding-left: 14px; padding-right: 14px; }
+  .brand h1 { font-size: 18px; }
+  .quote-stage { min-height: auto; }
+  .quote-content blockquote p { font-size: 16px; }
+  .diorama { width: calc(100% + 28px); margin-left: -14px; margin-right: -14px; height: clamp(140px, 23svh, 175px); }
+  .next-quote { font-size: 12.5px; padding: 8px 12px; }
+}
 @media (prefers-reduced-motion: reduce) { *, *::before, *::after { scroll-behavior: auto !important; transition-duration: .01ms !important; animation-duration: .01ms !important; animation-iteration-count: 1 !important; } }

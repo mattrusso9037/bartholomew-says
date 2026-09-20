@@ -42,15 +42,15 @@ function CameraController({
   compact: boolean;
 }) {
   const { camera } = useThree();
-  const currentPos = useRef(new Vector3(0, 2.55, 6.7));
-  const currentLookAt = useRef(new Vector3(0, 0.92, 0));
+  const currentPos = useRef<Vector3 | null>(null);
+  const currentLookAt = useRef<Vector3 | null>(null);
 
   const { targetPos, targetLookAt } = useMemo(() => {
     if (mode === "sleeping") {
       return compact
         ? {
-            targetPos: new Vector3(0, 1.95, 6.6),
-            targetLookAt: new Vector3(0, 0.96, 0),
+            targetPos: new Vector3(0, 1.86, 5.85),
+            targetLookAt: new Vector3(0, 0.98, 0),
           }
         : {
             targetPos: new Vector3(0.1, 1.95, 6.25),
@@ -59,7 +59,7 @@ function CameraController({
     }
     return compact
       ? {
-          targetPos: new Vector3(0, 2.08, 6.9),
+          targetPos: new Vector3(0, 1.98, 6.18),
           targetLookAt: new Vector3(0, 1.05, 0),
         }
       : {
@@ -70,12 +70,15 @@ function CameraController({
 
   useFrame((_, delta) => {
     const clampedDelta = Math.min(delta, 0.05);
-    if (reducedMotion) {
+    if (!currentPos.current || !currentLookAt.current) {
+      currentPos.current = targetPos.clone();
+      currentLookAt.current = targetLookAt.clone();
+    } else if (reducedMotion) {
       currentPos.current.copy(targetPos);
       currentLookAt.current.copy(targetLookAt);
     } else {
-      currentPos.current.lerp(targetPos, 1 - Math.exp(-0.65 * clampedDelta));
-      currentLookAt.current.lerp(targetLookAt, 1 - Math.exp(-0.65 * clampedDelta));
+      currentPos.current.lerp(targetPos, 1 - Math.exp(-0.85 * clampedDelta));
+      currentLookAt.current.lerp(targetLookAt, 1 - Math.exp(-0.85 * clampedDelta));
     }
     camera.position.copy(currentPos.current);
     camera.lookAt(currentLookAt.current);
@@ -127,12 +130,12 @@ export default function BartholomewScene({
     <div className="diorama" aria-hidden="true" data-character-phase={phase}>
       <SceneBoundary onUnavailable={onUnavailable}>
         <Canvas
-          camera={{ fov: 34, position: [0, 2.55, 6.7], near: 0.1, far: 20 }}
-          dpr={compact ? 1 : [1, 1.5]}
+          camera={{ fov: 34, position: [0, 2.05, 6.45], near: 0.1, far: 20 }}
+          dpr={compact ? [1.5, 2] : [1, 2]}
           shadows={{ type: PCFShadowMap }}
           gl={{
             alpha: true,
-            antialias: !compact,
+            antialias: true,
             powerPreference: "high-performance",
             toneMapping: ACESFilmicToneMapping,
             preserveDrawingBuffer: false,

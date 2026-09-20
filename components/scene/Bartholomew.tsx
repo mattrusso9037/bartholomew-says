@@ -43,6 +43,8 @@ export function Bartholomew({ reactionTrigger = 0, sleepTrigger = 0, reducedMoti
         const material = mesh.material as MeshStandardMaterial;
         material.roughness = 0.9;
         material.metalness = 0.04;
+        if (material.map) material.map.anisotropy = 8;
+        if (material.normalMap) material.normalMap.anisotropy = 8;
         // The supplied rig has no eye bones. Move the original painted pupils
         // inside their sockets, using the mesh's bind coordinates as a mask.
         material.onBeforeCompile = shader => {
