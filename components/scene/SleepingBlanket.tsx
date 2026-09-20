@@ -2,20 +2,112 @@
 
 import { useEffect, useMemo, useRef, type RefObject } from "react";
 import { useFrame } from "@react-three/fiber";
-import { DoubleSide, Group, MathUtils, Matrix4, MeshPhysicalMaterial, PlaneGeometry, Vector3, type Bone, type SkinnedMesh } from "three";
+import { BufferGeometry, CanvasTexture, DoubleSide, Float32BufferAttribute, Group, MathUtils, Matrix4, MeshPhysicalMaterial, MeshStandardMaterial, PlaneGeometry, Vector3, type Bone, type SkinnedMesh } from "three";
 import type { CharacterPhase } from "@/lib/character-motion";
+import staticBlanketData from "@/lib/static-blanket-mesh.json";
 
 const WIDTH = 1.42;
 const REAR = -0.58;
 const FRONT = 0.46;
 const CENTER_X = -0.14;
 
+/** Pre-shaped static velvet blanket for mobile viewports to prevent CPU bone-sampling lag and WebGL context loss. */
+function MobileSleepingBlanket({
+  amount,
+  settle,
+  reducedMotion,
+}: {
+  amount: RefObject<number>;
+  settle: RefObject<number>;
+  reducedMotion: boolean;
+}) {
+  const root = useRef<Group>(null);
+  const time = useRef(0);
+
+  const { geometry, material, texture } = useMemo(() => {
+    // Medieval gold-embroidered velvet texture
+    let tex: CanvasTexture | null = null;
+    if (typeof document !== "undefined") {
+      const canvas = document.createElement("canvas");
+      canvas.width = 256;
+      canvas.height = 256;
+      const ctx = canvas.getContext("2d");
+      if (ctx) {
+        ctx.fillStyle = "#46364a";
+        ctx.fillRect(0, 0, 256, 256);
+
+        ctx.strokeStyle = "#b38f44";
+        ctx.lineWidth = 5;
+        ctx.strokeRect(10, 10, 236, 236);
+
+        ctx.strokeStyle = "#80662d";
+        ctx.lineWidth = 2.5;
+        ctx.strokeRect(18, 18, 220, 220);
+      }
+      tex = new CanvasTexture(canvas);
+    }
+
+    // Exact pre-baked draped blanket geometry contoured over Bartholomew's curled sleeping body (Y up to 1.44m)
+    const geom = new BufferGeometry();
+    geom.setAttribute("position", new Float32BufferAttribute(staticBlanketData.positions, 3));
+    geom.setAttribute("uv", new Float32BufferAttribute(staticBlanketData.uvs, 2));
+    geom.setIndex(staticBlanketData.indices);
+    geom.computeVertexNormals();
+
+    const mat = new MeshStandardMaterial({
+      color: "#ffffff",
+      map: tex,
+      roughness: 0.88,
+      metalness: 0.05,
+      side: DoubleSide,
+      transparent: true,
+      opacity: 0,
+    });
+
+    return { geometry: geom, material: mat, texture: tex };
+  }, []);
+
+  useEffect(() => {
+    return () => {
+      geometry.dispose();
+      material.dispose();
+      texture?.dispose();
+    };
+  }, [geometry, material, texture]);
+
+  useFrame((_, delta) => {
+    if (!root.current) return;
+    const opacity = amount.current;
+    const isVisible = opacity > 0.005;
+    root.current.visible = isVisible;
+    if (!isVisible) return;
+
+    material.opacity = opacity;
+
+    if (!reducedMotion) {
+      time.current += Math.min(delta, 0.05);
+      const breath = Math.sin(time.current * 1.1) * 0.0035 * (1 - settle.current);
+      root.current.position.y = breath;
+    } else {
+      root.current.position.y = 0;
+    }
+  });
+
+  return (
+    <group ref={root} visible={false} name="Mobile velvet blanket">
+      <mesh geometry={geometry} material={material} receiveShadow />
+    </group>
+  );
+}
+
 /** A small cloth height field fitted to the animated body, with an uncovered head. */
 export function SleepingBlanket({ model, head, phase, amount, settle, reducedMotion, compact }: {
   model: SkinnedMesh; head: Bone; phase: RefObject<CharacterPhase>;
   amount: RefObject<number>; settle: RefObject<number>; reducedMotion: boolean; compact: boolean;
 }) {
-  if (compact) return null;
+  if (compact) {
+    return <MobileSleepingBlanket amount={amount} settle={settle} reducedMotion={reducedMotion} />;
+  }
   const root = useRef<Group>(null);
   const elapsed = useRef(0);
   const sinceFit = useRef(1);

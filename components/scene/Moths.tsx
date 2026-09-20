@@ -84,20 +84,22 @@ function Moth({ model, index, reactionTrigger, reducedMotion, compact }: { model
       <group ref={root} position={homes[index]} scale={index === 0 ? 0.115 : 0.087}>
         <mesh geometry={model.geometry} material={material} />
         {/* Generous hit volume so fluttering moths are easy to click */}
-        <mesh
-          position={[0, 0, 0]}
-          onClick={handleClick}
-          onPointerOver={(e) => {
-            e.stopPropagation();
-            document.body.style.cursor = "pointer";
-          }}
-          onPointerOut={() => {
-            document.body.style.cursor = "auto";
-          }}
-        >
-          <sphereGeometry args={[2.5, 12, 12]} />
-          <meshBasicMaterial transparent opacity={0} depthWrite={false} />
-        </mesh>
+        {!compact && (
+          <mesh
+            position={[0, 0, 0]}
+            onClick={handleClick}
+            onPointerOver={(e) => {
+              e.stopPropagation();
+              document.body.style.cursor = "pointer";
+            }}
+            onPointerOut={() => {
+              document.body.style.cursor = "auto";
+            }}
+          >
+            <sphereGeometry args={[2.5, 12, 12]} />
+            <meshBasicMaterial transparent opacity={0} depthWrite={false} />
+          </mesh>
+        )}
       </group>
       <MothTrail
         anchor={root}
@@ -110,7 +112,20 @@ function Moth({ model, index, reactionTrigger, reducedMotion, compact }: { model
 }
 
 export function Moths({ reactionTrigger, reducedMotion = false, compact = false }: { reactionTrigger: number; reducedMotion?: boolean; compact?: boolean }) {
-  if (compact) return null;
   const { nodes } = useGLTF("/models/silk-moth.glb");
-  return <group name="Silk moths">{homes.map((_, index) => <Moth key={index} model={nodes["silk-moth"] as Mesh} index={index} reactionTrigger={reactionTrigger} reducedMotion={reducedMotion} compact={compact} />)}</group>;
+  const mothList = useMemo(() => homes.slice(0, compact ? 2 : 4), [compact]);
+  return (
+    <group name="Silk moths">
+      {mothList.map((_, index) => (
+        <Moth
+          key={index}
+          model={nodes["silk-moth"] as Mesh}
+          index={index}
+          reactionTrigger={reactionTrigger}
+          reducedMotion={reducedMotion}
+          compact={compact}
+        />
+      ))}
+    </group>
+  );
 }

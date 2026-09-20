@@ -5,7 +5,6 @@ import { useFrame } from "@react-three/fiber";
 import { Points } from "three";
 
 export function Atmosphere({ compact, reducedMotion }: { compact: boolean; reducedMotion: boolean }) {
-  if (compact) return null;
   const ref = useRef<Points>(null);
   const time = useRef(0);
   const positions = useMemo(() => {

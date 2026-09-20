@@ -111,7 +111,17 @@ const flameCoreFragmentShader = `
   }
 `;
 
-function Candle({ position, height, reducedMotion }: { position: [number, number, number]; height: number; reducedMotion: boolean }) {
+function Candle({
+  position,
+  height,
+  reducedMotion,
+  compact = false,
+}: {
+  position: [number, number, number];
+  height: number;
+  reducedMotion: boolean;
+  compact?: boolean;
+}) {
   const light = useRef<PointLight>(null);
   const halo = useRef<Mesh>(null);
   const hovered = useRef(false);
@@ -138,8 +148,8 @@ function Candle({ position, height, reducedMotion }: { position: [number, number
       [0.005, 0.096],
       [0.000, 0.112],
     ].map(([x, y]) => new Vector2(x, y));
-    return new LatheGeometry(points, 28);
-  }, []);
+    return new LatheGeometry(points, compact ? 16 : 28);
+  }, [compact]);
 
   const coreGeometry = useMemo(() => {
     const points = [
@@ -152,49 +162,76 @@ function Candle({ position, height, reducedMotion }: { position: [number, number
       [0.002, 0.068],
       [0.000, 0.076],
     ].map(([x, y]) => new Vector2(x, y));
-    return new LatheGeometry(points, 20);
-  }, []);
+    return new LatheGeometry(points, compact ? 12 : 20);
+  }, [compact]);
 
-  const flameMaterial = useMemo(() => new ShaderMaterial({
-    uniforms: {
-      uTime: { value: 0 },
-      uWarmth: { value: 0 },
-      uFlicker: { value: 0 },
-    },
-    vertexShader: flameVertexShader,
-    fragmentShader: flameFragmentShader,
-    transparent: true,
-    depthWrite: false,
-    blending: AdditiveBlending,
-    side: DoubleSide,
-  }), []);
+  const flameMaterial = useMemo(() => {
+    if (compact) return null;
+    return new ShaderMaterial({
+      uniforms: {
+        uTime: { value: 0 },
+        uWarmth: { value: 0 },
+        uFlicker: { value: 0 },
+      },
+      vertexShader: flameVertexShader,
+      fragmentShader: flameFragmentShader,
+      transparent: true,
+      depthWrite: false,
+      blending: AdditiveBlending,
+      side: DoubleSide,
+    });
+  }, [compact]);
 
-  const coreMaterial = useMemo(() => new ShaderMaterial({
-    uniforms: {
-      uTime: { value: 0 },
-      uWarmth: { value: 0 },
-      uFlicker: { value: 0 },
-    },
-    vertexShader: flameVertexShader,
-    fragmentShader: flameCoreFragmentShader,
-    transparent: true,
-    depthWrite: false,
-    blending: AdditiveBlending,
-    side: DoubleSide,
-  }), []);
+  const coreMaterial = useMemo(() => {
+    if (compact) return null;
+    return new ShaderMaterial({
+      uniforms: {
+        uTime: { value: 0 },
+        uWarmth: { value: 0 },
+        uFlicker: { value: 0 },
+      },
+      vertexShader: flameVertexShader,
+      fragmentShader: flameCoreFragmentShader,
+      transparent: true,
+      depthWrite: false,
+      blending: AdditiveBlending,
+      side: DoubleSide,
+    });
+  }, [compact]);
+
+  const mobileFlameMaterial = useMemo(() => {
+    if (!compact) return null;
+    return new MeshBasicMaterial({ color: "#ff9f28", toneMapped: false });
+  }, [compact]);
+
+  const mobileCoreMaterial = useMemo(() => {
+    if (!compact) return null;
+    return new MeshBasicMaterial({ color: "#fff0aa", toneMapped: false });
+  }, [compact]);
 
   useEffect(() => () => {
     flameGeometry.dispose();
     coreGeometry.dispose();
-    flameMaterial.dispose();
-    coreMaterial.dispose();
+    flameMaterial?.dispose();
+    coreMaterial?.dispose();
+    mobileFlameMaterial?.dispose();
+    mobileCoreMaterial?.dispose();
     document.body.style.cursor = "auto";
-  }, [flameGeometry, coreGeometry, flameMaterial, coreMaterial]);
+  }, [flameGeometry, coreGeometry, flameMaterial, coreMaterial, mobileFlameMaterial, mobileCoreMaterial]);
 
   useFrame((_, delta) => {
     const clampedDelta = Math.min(delta, 0.05);
     if (!reducedMotion) time.current += clampedDelta;
     const t = time.current;
+
+    if (compact) {
+      if (!reducedMotion && halo.current) {
+        const flicker = Math.sin(t * 7.4) * 0.05;
+        halo.current.scale.setScalar(0.042 * (1 + flicker));
+      }
+      return;
+    }
+
     warmth.current = reducedMotion ? Number(hovered.current) : MathUtils.damp(warmth.current, Number(hovered.current), 5.5, clampedDelta);
     const flicker = reducedMotion ? 0 : Math.sin(t * 7.4) * 0.06 + Math.sin(t * 13.1) * 0.035;
 
@@ -224,34 +261,36 @@ function Candle({ position, height, reducedMotion }: { position: [number, number
 
   return (
     <group position={position} name="Hover candle">
-      <mesh
-        position={[0, (height + 0.45) / 2, 0]}
-        onPointerOver={(event) => {
-          event.stopPropagation();
-          hovered.current = true;
-          document.body.style.cursor = "pointer";
-          invalidate();
-        }}
-        onPointerOut={() => {
-          hovered.current = false;
-          document.body.style.cursor = "auto";
-          invalidate();
-        }}
-      >
-        <cylinderGeometry args={[0.26, 0.26, height + 0.7, 16]} />
-        <meshBasicMaterial transparent opacity={0} depthWrite={false} />
-      </mesh>
-      <mesh castShadow receiveShadow>
-        <latheGeometry args={[holder, 24]} />
+      {!compact && (
+        <mesh
+          position={[0, (height + 0.45) / 2, 0]}
+          onPointerOver={(event) => {
+            event.stopPropagation();
+            hovered.current = true;
+            document.body.style.cursor = "pointer";
+            invalidate();
+          }}
+          onPointerOut={() => {
+            hovered.current = false;
+            document.body.style.cursor = "auto";
+            invalidate();
+          }}
+        >
+          <cylinderGeometry args={[0.26, 0.26, height + 0.7, 16]} />
+          <meshBasicMaterial transparent opacity={0} depthWrite={false} />
+        </mesh>
+      )}
+      <mesh castShadow={!compact} receiveShadow>
+        <latheGeometry args={[holder, compact ? 16 : 24]} />
         <meshStandardMaterial color="#82704c" metalness={0.8} roughness={0.43} />
       </mesh>
-      <mesh position={[0, 0.32 + height / 2, 0]} castShadow>
-        <cylinderGeometry args={[0.051, 0.057, height, 24]} />
+      <mesh position={[0, 0.32 + height / 2, 0]} castShadow={!compact}>
+        <cylinderGeometry args={[0.051, 0.057, height, compact ? 14 : 24]} />
         <meshStandardMaterial color="#d6c29a" roughness={0.92} />
       </mesh>
       {[0, 1, 2, 3, 4].map((i) => (
         <mesh key={i} position={[Math.sin(i * 2.4) * 0.05, 0.32 + height - 0.024 - (i % 3) * 0.031, Math.cos(i * 2.4) * 0.05]} scale={[0.01, 0.04 + (i % 3) * 0.028, 0.01]}>
-          <sphereGeometry args={[1, 10, 8]} />
+          <sphereGeometry args={[1, 8, 6]} />
           <meshStandardMaterial color="#d3bf99" roughness={0.9} />
         </mesh>
       ))}
@@ -266,18 +305,20 @@ function Candle({ position, height, reducedMotion }: { position: [number, number
         <meshBasicMaterial color="#ff3800" toneMapped={false} />
       </mesh>
 
-      {/* Photorealistic teardrop flame with combustion zones and convection sway */}
+      {/* Photorealistic teardrop flame with combustion zones (desktop shaders or mobile basic glow) */}
       <group position={[0, height + 0.351, 0]}>
-        <mesh ref={flameMesh} geometry={flameGeometry} material={flameMaterial} />
-        <mesh ref={coreMesh} geometry={coreGeometry} material={coreMaterial} position={[0, 0.002, 0]} />
+        <mesh ref={flameMesh} geometry={flameGeometry} material={compact ? mobileFlameMaterial! : flameMaterial!} />
+        <mesh ref={coreMesh} geometry={coreGeometry} material={compact ? mobileCoreMaterial! : coreMaterial!} position={[0, 0.002, 0]} />
         {/* Radiant atmospheric warm amber halo */}
         <mesh ref={halo} position={[0, 0.048, 0]}>
-          <sphereGeometry args={[1, 16, 12]} />
+          <sphereGeometry args={[1, compact ? 12 : 16, compact ? 8 : 12]} />
           <meshBasicMaterial color="#ff9222" transparent opacity={0.24} depthWrite={false} blending={AdditiveBlending} toneMapped={false} />
         </mesh>
       </group>
 
-      <pointLight ref={light} position={[0, height + 0.40, 0]} color="#ffb765" intensity={1.8} distance={3.8} decay={2} />
+      {!compact && (
+        <pointLight ref={light} position={[0, height + 0.40, 0]} color="#ffb765" intensity={1.8} distance={3.8} decay={2} />
+      )}
     </group>
   );
 }
@@ -304,12 +345,8 @@ export function SceneLighting({ reducedMotion = false, compact = false }: { redu
       />
       <directionalLight position={[0, 1.8, 4]} color="#e5d9bc" intensity={compact ? 0.75 : 0.5} />
       <directionalLight position={[2, 3, -3]} color="#b6cde0" intensity={compact ? 1.3 : 1.7} />
-      {!compact && (
-        <>
-          <Candle position={[-1.19, 0, 0.05]} height={0.38} reducedMotion={reducedMotion} />
-          <Candle position={[1.07, 0, -0.35]} height={0.63} reducedMotion={reducedMotion} />
-        </>
-      )}
+      <Candle position={[-1.19, 0, 0.05]} height={0.38} reducedMotion={reducedMotion} compact={compact} />
+      <Candle position={[1.07, 0, -0.35]} height={0.63} reducedMotion={reducedMotion} compact={compact} />
     </group>
   );
 }
