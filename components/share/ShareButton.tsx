@@ -6,18 +6,86 @@ import type { Quote } from "@/data/quotes";
 
 export interface ShareQuotePayload { title: string; text: string; quoteId: number | string; book: string; url: string }
 
-export async function shareOrCopyQuote(payload: ShareQuotePayload): Promise<"shared" | "copied" | "cancelled"> {
-  const shareText = `“${payload.text}” — from ${payload.book} | Bartholomew Says`;
-  if (navigator.share) {
+export interface ShareOptions {
+  isMobile?: boolean;
+}
+
+export function isMobileOrTablet(): boolean {
+  if (typeof window === "undefined" || typeof navigator === "undefined") {
+    return false;
+  }
+
+  const ua = navigator.userAgent || "";
+  const platform = (navigator as unknown as { platform?: string }).platform || "";
+  const maxTouchPoints = typeof navigator.maxTouchPoints === "number" ? navigator.maxTouchPoints : 0;
+
+  // 1. Mobile and tablet user agents (phones, iPads, Android tablets)
+  if (/Android|webOS|iPhone|iPad|iPod|BlackBerry|IEMobile|Opera Mini|Mobile|Tablet/i.test(ua)) {
+    return true;
+  }
+
+  // 2. iPad on iPadOS 13+ (reports as Macintosh / MacIntel in userAgent, but has touch points)
+  if ((/Macintosh/i.test(ua) || platform === "MacIntel") && maxTouchPoints > 1) {
+    return true;
+  }
+
+  // 3. User agent client hints API if supported
+  const navAny = navigator as unknown as { userAgentData?: { mobile?: boolean } };
+  if (navAny.userAgentData?.mobile) {
+    return true;
+  }
+
+  // 4. Coarse pointer (touchscreen device) without fine pointer
+  if (
+    typeof window.matchMedia === "function" &&
+    maxTouchPoints > 0 &&
+    window.matchMedia("(pointer: coarse)").matches &&
+    !window.matchMedia("(pointer: fine)").matches
+  ) {
+    return true;
+  }
+
+  return false;
+}
+
+export async function copyToClipboard(text: string): Promise<void> {
+  if (typeof navigator !== "undefined" && navigator.clipboard && typeof navigator.clipboard.writeText === "function") {
+    await navigator.clipboard.writeText(text);
+    return;
+  }
+  if (typeof document !== "undefined") {
+    const textArea = document.createElement("textarea");
+    textArea.value = text;
+    textArea.style.position = "fixed";
+    textArea.style.opacity = "0";
+    document.body.appendChild(textArea);
+    textArea.focus();
+    textArea.select();
     try {
-      await navigator.share({ title: payload.title, text: shareText, url: payload.url });
+      const successful = document.execCommand("copy");
+      document.body.removeChild(textArea);
+      if (successful) return;
+    } catch {
+      document.body.removeChild(textArea);
+    }
+  }
+  throw new Error("Clipboard unavailable");
+}
+
+export async function shareOrCopyQuote(
+  payload: ShareQuotePayload,
+  options?: ShareOptions
+): Promise<"shared" | "copied" | "cancelled"> {
+  const allowShare = options?.isMobile ?? isMobileOrTablet();
+  if (allowShare && typeof navigator !== "undefined" && typeof navigator.share === "function") {
+    try {
+      await navigator.share({ title: payload.title, url: payload.url });
       return "shared";
     } catch (error) {
       if (error instanceof Error && error.name === "AbortError") return "cancelled";
     }
   }
-  if (!navigator.clipboard) throw new Error("Clipboard unavailable");
-  await navigator.clipboard.writeText(`${shareText}\n${payload.url}`);
+  await copyToClipboard(payload.url);
   return "copied";
 }
 
@@ -51,7 +119,15 @@ export function ShareButton({ quote, disabled = false }: { quote: Quote; disable
         {status === "copied" || status === "shared" ? <Check size={13} aria-hidden="true" /> : <Share2 size={13} strokeWidth={1.4} aria-hidden="true" />}
         <span>{status === "copied" ? "Copied" : status === "shared" ? "Shared" : "Share this quote"}</span>
       </button>
-      <span role="status" className={status === "error" ? "share-feedback" : "sr-only"}>{status === "error" ? "Couldn’t share. You can select and copy the quote." : status === "copied" ? "Quote copied to clipboard" : ""}</span>
+      <span role="status" className={status === "error" ? "share-feedback" : "sr-only"}>
+        {status === "error"
+          ? "Couldn’t share. You can select and copy the quote."
+          : status === "copied"
+          ? "Quote copied to clipboard"
+          : status === "shared"
+          ? "Quote shared"
+          : ""}
+      </span>
     </div>
   );
 }
