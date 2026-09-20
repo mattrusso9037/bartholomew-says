@@ -60,6 +60,7 @@ export function CathedralArrival({ ready, reducedMotion, onComplete }: {
         <p className="arrival-eyebrow">A quiet corner of the cathedral</p>
         <p className="arrival-title">A little moonlight.<br /><em>A moment of magic.</em></p>
         <p className="arrival-status" role="status" aria-live="polite">{progress >= 100 ? "The candles are lit." : progress >= 95 ? "Opening the cathedral…" : "Lighting the candles…"}</p>
+        <p className="arrival-device-note">(Best experienced on desktop)</p>
       </motion.div>
     </motion.div>
   );

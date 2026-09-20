@@ -87,6 +87,7 @@ button:disabled { cursor: default; }
 .arrival-title { margin: 0; font-size: clamp(30px, 4vw, 43px); font-weight: 400; line-height: 1.17; color: #e3d9bf; }
 .arrival-title em { color: #c0a877; font-weight: 400; }
 .arrival-status { margin: 25px 0 0; color: #8e968c; font: 10px var(--font-inter), sans-serif; letter-spacing: .08em; }
+.arrival-device-note { display: none; margin: 14px 0 0; font: italic 13px var(--font-cormorant), Georgia, serif; letter-spacing: .035em; color: #bfae8a; opacity: .85; }
 .colophon { position: relative; z-index: 3; display: flex; align-items: center; gap: 20px; color: #a8aa9c; font: 8px var(--font-inter), sans-serif; letter-spacing: .15em; text-transform: uppercase; padding-top: 17px; border-top: 1px solid #bcab8030; }
 .colophon i { text-transform: none; letter-spacing: 0; font: italic 13px var(--font-cormorant), Georgia, serif; margin-left: 5px; }
 .colophon-aside { margin-left: auto; text-transform: none; font: italic 13px var(--font-cormorant), Georgia, serif; letter-spacing: .02em; }
@@ -200,6 +201,7 @@ button:disabled { cursor: default; }
   .share-quote { min-height: 26px; padding: 2px 0; font-size: 8.5px; gap: 7px; }
   .share-quote svg { width: 12px; height: 12px; }
   .arrival-emblem { width: 120px; height: 160px; margin-bottom: 20px; }
+  .arrival-device-note { display: block; }
   .colophon {
     order: 7;
     margin-top: 0;
