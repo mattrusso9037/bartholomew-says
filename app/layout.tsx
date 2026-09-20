@@ -22,7 +22,7 @@ const siteUrl =
     ? `https://${process.env.VERCEL_PROJECT_PRODUCTION_URL}`
     : undefined) ||
   (process.env.VERCEL_URL ? `https://${process.env.VERCEL_URL}` : undefined) ||
-  "https://bartholomew-says.vercel.app";
+  "https://bartholomew.softwareinfocus.com";
 
 export const metadata: Metadata = {
   metadataBase: new URL(siteUrl),

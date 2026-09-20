@@ -140,63 +140,63 @@ export function QuoteAppClient({ initialQuote }: { initialQuote?: Quote }) {
 
   return (
     <>
-    <AnimatePresence onExitComplete={() => setEntered(true)}>
-      {!arrivalDone && <CathedralArrival key="arrival" ready={backdropReady && (sceneReady || sceneUnavailable)} reducedMotion={prefersReducedMotion} onComplete={onArrivalComplete} />}
-    </AnimatePresence>
-    <main className="cathedral" inert={!entered} aria-busy={!arrivalDone} data-motion={reducedMotion ? "still" : "animated"}>
-      <div className="cathedral-backdrop" aria-hidden="true">
-        <Image src="/backgrounds/gothic-chamber.jpg" alt="" fill preload sizes="100vw" className="cathedral-image" onLoad={onBackdropReady} onError={onBackdropReady} />
-      </div>
-      <div className="cathedral-shade" aria-hidden="true" />
-      <div className="cathedral-haze" aria-hidden="true" />
-      <div className="film-grain" aria-hidden="true" />
-      <div className="page-frame" aria-hidden="true" />
-
-      <header className="masthead">
-        <div className="brand">
-          <span className="brand-seal" aria-hidden="true"><Moon size={21} strokeWidth={1} /></span>
-          <div>
-            <h1>Bartholomew <em>Says</em></h1>
-            <p>An unnecessarily dramatic collection of wisdom</p>
-          </div>
+      <AnimatePresence onExitComplete={() => setEntered(true)}>
+        {!arrivalDone && <CathedralArrival key="arrival" ready={backdropReady && (sceneReady || sceneUnavailable)} reducedMotion={prefersReducedMotion} onComplete={onArrivalComplete} />}
+      </AnimatePresence>
+      <main className="cathedral" inert={!entered} aria-busy={!arrivalDone} data-motion={reducedMotion ? "still" : "animated"}>
+        <div className="cathedral-backdrop" aria-hidden="true">
+          <Image src="/backgrounds/gothic-chamber.jpg" alt="" fill preload sizes="100vw" className="cathedral-image" onLoad={onBackdropReady} onError={onBackdropReady} />
         </div>
-        <span className="masthead-note">A quiet corner of the cathedral</span>
-      </header>
+        <div className="cathedral-shade" aria-hidden="true" />
+        <div className="cathedral-haze" aria-hidden="true" />
+        <div className="film-grain" aria-hidden="true" />
+        <div className="page-frame" aria-hidden="true" />
 
-      <section className="quote-section" aria-label="Current quote">
-        <QuoteDisplay quote={currentQuote} reducedMotion={reducedMotion} onSettled={onQuoteSettled} />
-        <QuoteActions
-          quote={currentQuote}
-          onNextQuote={handleNextQuote}
-          isTransitioning={isTransitioning}
-          reachedEnd={reachedEnd}
-          onResetQuotes={handleResetQuotes}
+        <header className="masthead">
+          <div className="brand">
+            <span className="brand-seal" aria-hidden="true"><Moon size={21} strokeWidth={1} /></span>
+            <div>
+              <h1>Bartholomew <em>Says</em></h1>
+              <p>An unnecessarily dramatic collection of wisdom</p>
+            </div>
+          </div>
+          <span className="masthead-note">A quiet corner of the cathedral</span>
+        </header>
+
+        <section className="quote-section" aria-label="Current quote">
+          <QuoteDisplay quote={currentQuote} reducedMotion={reducedMotion} onSettled={onQuoteSettled} />
+          <QuoteActions
+            quote={currentQuote}
+            onNextQuote={handleNextQuote}
+            isTransitioning={isTransitioning}
+            reachedEnd={reachedEnd}
+            onResetQuotes={handleResetQuotes}
+          />
+        </section>
+
+        <BartholomewScene
+          reactionTrigger={reactionTrigger}
+          sleepTrigger={sleepTrigger}
+          reducedMotion={reducedMotion}
+          onInteract={reachedEnd ? handleResetQuotes : handleNextQuote}
+          onReady={onSceneReady}
+          onUnavailable={onSceneUnavailable}
+          onPhaseChange={onPhaseChange}
         />
-      </section>
+        <div className="character-caption">
+          <span className="caption-rule" aria-hidden="true" />
+          <p>Bartholomew</p>
+          <span className="character-aside">Excellent company. By most accounts.</span>
+          <motion.button type="button" className="tuck-in" onClick={tuckIn} disabled={!sceneReady || sleepPending || resting} whileHover={reducedMotion ? undefined : { y: -1 }} whileTap={reducedMotion ? undefined : { scale: .97 }}>
+            <Moon size={13} strokeWidth={1.2} aria-hidden="true" />{sleepLabel}
+          </motion.button>
+          <span className="sr-only" role="status" aria-live="polite">{resting || sleepPending ? sleepLabel : ""}</span>
+        </div>
 
-      <BartholomewScene
-        reactionTrigger={reactionTrigger}
-        sleepTrigger={sleepTrigger}
-        reducedMotion={reducedMotion}
-        onInteract={reachedEnd ? handleResetQuotes : handleNextQuote}
-        onReady={onSceneReady}
-        onUnavailable={onSceneUnavailable}
-        onPhaseChange={onPhaseChange}
-      />
-      <div className="character-caption">
-        <span className="caption-rule" aria-hidden="true" />
-        <p>Bartholomew</p>
-        <span className="character-aside">Excellent company. Allegedly.</span>
-        <motion.button type="button" className="tuck-in" onClick={tuckIn} disabled={!sceneReady || sleepPending || resting} whileHover={reducedMotion ? undefined : { y: -1 }} whileTap={reducedMotion ? undefined : { scale: .97 }}>
-          <Moon size={13} strokeWidth={1.2} aria-hidden="true" />{sleepLabel}
-        </motion.button>
-        <span className="sr-only" role="status" aria-live="polite">{resting || sleepPending ? sleepLabel : ""}</span>
-      </div>
-
-      <footer className="colophon">
-        <span>The Knight &amp; The Moth <i>Series</i></span>
-      </footer>
-    </main>
+        <footer className="colophon">
+          <span>The Knight &amp; The Moth <i>Series</i></span>
+        </footer>
+      </main>
     </>
   );
 }
