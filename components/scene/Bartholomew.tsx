@@ -35,6 +35,7 @@ export function Bartholomew({ reactionTrigger = 0, sleepTrigger = 0, reducedMoti
   const rig = useMemo(() => {
     const scene = clone(gltf.scene);
     const eyeGaze = { value: new Vector2() };
+    const eyeClose = { value: 0 };
     let mesh: SkinnedMesh | undefined;
     scene.traverse((child) => {
       if ((child as SkinnedMesh).isSkinnedMesh) {
@@ -47,37 +48,58 @@ export function Bartholomew({ reactionTrigger = 0, sleepTrigger = 0, reducedMoti
         if (material.normalMap) material.normalMap.anisotropy = 8;
         // The supplied rig has no eye bones. Move the original painted pupils
         // inside their sockets, using the mesh's bind coordinates as a mask.
+        // When curled or sleeping, close the eyelids with a natural crease.
         material.onBeforeCompile = shader => {
           shader.uniforms.uEyeGaze = eyeGaze;
+          shader.uniforms.uEyeClose = eyeClose;
           shader.vertexShader = `varying vec3 vEyeBindPosition;\n${shader.vertexShader}`
             .replace("#include <begin_vertex>", "#include <begin_vertex>\nvEyeBindPosition = position;");
-          shader.fragmentShader = `uniform vec2 uEyeGaze;\nvarying vec3 vEyeBindPosition;\n${shader.fragmentShader}`
+          shader.fragmentShader = `uniform vec2 uEyeGaze;\nuniform float uEyeClose;\nvarying vec3 vEyeBindPosition;\n${shader.fragmentShader}`
             .replace("#include <map_fragment>", compact ? `
               #ifdef USE_MAP
                 vec2 eyeLocal = vec2(abs(vEyeBindPosition.x) - 0.125, vEyeBindPosition.y - 1.073);
-                float eyeMask = (1.0 - smoothstep(0.45, 1.0, length(eyeLocal / vec2(0.063, 0.036))))
+                float eyeRadius = length(eyeLocal / vec2(0.063, 0.036));
+                float eyeMask = (1.0 - smoothstep(0.45, 1.0, eyeRadius))
                   * smoothstep(0.26, 0.29, vEyeBindPosition.z);
-                vec2 offset = uEyeGaze * vec2(0.012, 0.007) * eyeMask;
+                vec2 offset = uEyeGaze * vec2(0.012, 0.007) * (1.0 - uEyeClose) * eyeMask;
                 vec2 eyeUv = vMapUv - offset;
-                diffuseColor *= texture2D(map, eyeUv);
+                vec4 sampledTex = texture2D(map, eyeUv);
+                float slitY = -0.004 - (eyeLocal.x * eyeLocal.x) * 1.5;
+                float lidDist = eyeLocal.y - slitY;
+                float crease = (1.0 - smoothstep(0.0008, 0.0035, abs(lidDist))) * eyeMask * uEyeClose;
+                float lidShadow = smoothstep(0.0, 0.012, lidDist) * (1.0 - smoothstep(0.012, 0.028, lidDist)) * eyeMask * uEyeClose;
+                vec3 stoneEyelid = mix(sampledTex.rgb, vec3(0.55, 0.52, 0.48), 0.78);
+                vec3 finalColor = mix(sampledTex.rgb, stoneEyelid, uEyeClose * eyeMask);
+                finalColor *= (1.0 - crease * 0.7 - lidShadow * 0.2);
+                diffuseColor.rgb *= finalColor;
+                diffuseColor.a *= sampledTex.a;
               #endif
             ` : `
               #ifdef USE_MAP
                 vec2 eyeLocal = vec2(abs(vEyeBindPosition.x) - 0.125, vEyeBindPosition.y - 1.073);
-                float eyeMask = (1.0 - smoothstep(0.45, 1.0, length(eyeLocal / vec2(0.063, 0.036))))
+                float eyeRadius = length(eyeLocal / vec2(0.063, 0.036));
+                float eyeMask = (1.0 - smoothstep(0.45, 1.0, eyeRadius))
                   * smoothstep(0.26, 0.29, vEyeBindPosition.z);
                 vec2 px = dFdx(vEyeBindPosition.xy), py = dFdy(vEyeBindPosition.xy);
                 float determinant = px.x * py.y - px.y * py.x;
-                vec2 offset = uEyeGaze * vec2(0.012, 0.007) * eyeMask;
+                vec2 gazeOffset = uEyeGaze * vec2(0.012, 0.007) * (1.0 - uEyeClose) * eyeMask;
+                float slitY = -0.004 - (eyeLocal.x * eyeLocal.x) * 1.5;
+                float lidDist = eyeLocal.y - slitY;
+                float lidShiftY = (lidDist > 0.0 ? 0.038 : -0.026) * uEyeClose * eyeMask;
+                vec2 totalOffset = gazeOffset + vec2(0.0, lidShiftY);
                 vec2 screenShift = abs(determinant) > 0.00000001
-                  ? vec2(py.y * offset.x - py.x * offset.y, px.x * offset.y - px.y * offset.x) / determinant
+                  ? vec2(py.y * totalOffset.x - py.x * totalOffset.y, px.x * totalOffset.y - px.y * totalOffset.x) / determinant
                   : vec2(0.0);
                 vec2 eyeUv = vMapUv - dFdx(vMapUv) * screenShift.x - dFdy(vMapUv) * screenShift.y;
-                diffuseColor *= texture2D(map, eyeUv);
+                vec4 sampledTex = texture2D(map, eyeUv);
+                float crease = (1.0 - smoothstep(0.0008, 0.0035, abs(lidDist))) * eyeMask * uEyeClose;
+                float lidShadow = smoothstep(0.0, 0.012, lidDist) * (1.0 - smoothstep(0.012, 0.028, lidDist)) * eyeMask * uEyeClose;
+                diffuseColor *= sampledTex;
+                diffuseColor.rgb *= (1.0 - crease * 0.7 - lidShadow * 0.2);
               #endif
             `);
         };
-        material.customProgramCacheKey = () => compact ? "bartholomew-eye-gaze-compact-v1" : "bartholomew-eye-gaze-v1";
+        material.customProgramCacheKey = () => compact ? "bartholomew-eye-close-compact-v2" : "bartholomew-eye-close-v2";
         mesh.castShadow = mesh.receiveShadow = true;
         mesh.frustumCulled = false;
       }
@@ -111,7 +133,7 @@ export function Bartholomew({ reactionTrigger = 0, sleepTrigger = 0, reducedMoti
     clips.push(AnimationUtils.subclip(sit, "Settle", (sit.duration - 1.65) * 24, sit.duration * 24, 24));
     const mixer = new AnimationMixer(scene);
     const head = mesh.skeleton.bones.find(bone => bone.name.endsWith("Head")) as Bone;
-    return { scene, mesh, mixer, clips, head, eyeGaze, parentWorld: new Quaternion(), target: new Quaternion(), angles: new Euler() };
+    return { scene, mesh, mixer, clips, head, eyeGaze, eyeClose, parentWorld: new Quaternion(), target: new Quaternion(), angles: new Euler() };
   }, [gltf, compact]);
   const director = useRef<CharacterDirector | null>(null);
   const currentAction = useRef<AnimationAction | null>(null);
@@ -214,7 +236,9 @@ export function Bartholomew({ reactionTrigger = 0, sleepTrigger = 0, reducedMoti
     gaze.current.x = MathUtils.damp(gaze.current.x, compact ? 0 : pointer.current.x, 2.4, delta);
     gaze.current.y = MathUtils.damp(gaze.current.y, compact ? 0 : pointer.current.y, 2.4, delta);
     rig.eyeGaze.value.copy(gaze.current).multiplyScalar(1 - curled);
-    // Generated curl motion rolls the head upside down. Stabilize it after the
+    const isSleeping = phase.current === "sleeping" || phase.current === "curling";
+    const targetEyeClose = isSleeping ? Math.max(curled, phase.current === "sleeping" ? 1 : 0) : phase.current === "drowsy" ? 0.45 : 0;
+    rig.eyeClose.value = MathUtils.damp(rig.eyeClose.value, targetEyeClose, 5.0, delta);
     // mixer, keeping the face visible and adding a restrained cursor response.
     rig.scene.updateMatrixWorld(true);
     rig.head.parent!.getWorldQuaternion(rig.parentWorld);
