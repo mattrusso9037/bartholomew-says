@@ -21,9 +21,11 @@ const siteUrl =
   (process.env.VERCEL_PROJECT_PRODUCTION_URL
     ? `https://${process.env.VERCEL_PROJECT_PRODUCTION_URL}`
     : undefined) ||
-  (process.env.VERCEL_URL ? `https://${process.env.VERCEL_URL}` : undefined);
+  (process.env.VERCEL_URL ? `https://${process.env.VERCEL_URL}` : undefined) ||
+  "https://bartholomew-says.vercel.app";
 
 export const metadata: Metadata = {
+  metadataBase: new URL(siteUrl),
   robots: {
     index: false,
     follow: false,
@@ -32,7 +34,6 @@ export const metadata: Metadata = {
       follow: false,
     },
   },
-  ...(siteUrl ? { metadataBase: new URL(siteUrl) } : {}),
   title: "Bartholomew Says",
   description: "An unnecessarily dramatic collection of Bartholomew wisdom.",
   icons: {
@@ -42,12 +43,13 @@ export const metadata: Metadata = {
     title: "Bartholomew Says",
     description: "An unnecessarily dramatic collection of Bartholomew wisdom.",
     type: "website",
+    siteName: "Bartholomew Says",
     images: [
       {
         url: "/og-image.png",
-        width: 1672,
-        height: 941,
-        alt: "Bartholomew Says",
+        width: 1200,
+        height: 630,
+        alt: "Bartholomew Says - An Unnecessarily Dramatic Collection of Wisdom",
       },
     ],
   },
@@ -58,9 +60,9 @@ export const metadata: Metadata = {
     images: [
       {
         url: "/og-image.png",
-        width: 1672,
-        height: 941,
-        alt: "Bartholomew Says",
+        width: 1200,
+        height: 630,
+        alt: "Bartholomew Says - An Unnecessarily Dramatic Collection of Wisdom",
       },
     ],
   },
