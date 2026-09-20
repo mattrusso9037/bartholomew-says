@@ -68,6 +68,7 @@ export function QuoteAppClient({ initialQuote }: { initialQuote?: Quote }) {
         const next = getNextQuote({ seenIds: storedSeen });
         targetQuote = next.quote;
       } else {
+        resetStoredSeenQuotes();
         targetQuote = getRandomQuote();
       }
 
@@ -95,30 +96,22 @@ export function QuoteAppClient({ initialQuote }: { initialQuote?: Quote }) {
     };
   }, [initialQuote]);
 
-  const reachedEnd = quotes.length > 0 && seenIds.length >= quotes.length;
-
   const handleNextQuote = useCallback(() => {
     if (isTransitioning) return;
     const next = getNextQuote({ currentId: currentQuote.id, seenIds });
-    const updatedSeen = markQuoteAsSeen(next.quote.id);
+    let updatedSeen: number[];
+    if (next.resetOccurred) {
+      resetStoredSeenQuotes();
+      updatedSeen = markQuoteAsSeen(next.quote.id);
+    } else {
+      updatedSeen = markQuoteAsSeen(next.quote.id);
+    }
     setSeenIds(updatedSeen);
     setIsTransitioning(true);
     setReactionTrigger((prev) => prev + 1);
     setCurrentQuote(next.quote);
     syncUrlWithQuote(next.quote.id);
   }, [isTransitioning, currentQuote.id, seenIds]);
-
-  const handleResetQuotes = useCallback(() => {
-    if (isTransitioning) return;
-    resetStoredSeenQuotes();
-    const next = getRandomQuote(currentQuote.id);
-    const updatedSeen = markQuoteAsSeen(next.id);
-    setSeenIds(updatedSeen);
-    setIsTransitioning(true);
-    setReactionTrigger((prev) => prev + 1);
-    setCurrentQuote(next);
-    syncUrlWithQuote(next.id);
-  }, [isTransitioning, currentQuote.id]);
 
   const onQuoteSettled = useCallback(() => setIsTransitioning(false), []);
   const onSceneReady = useCallback(() => setSceneReady(true), []);
@@ -169,8 +162,6 @@ export function QuoteAppClient({ initialQuote }: { initialQuote?: Quote }) {
             quote={currentQuote}
             onNextQuote={handleNextQuote}
             isTransitioning={isTransitioning}
-            reachedEnd={reachedEnd}
-            onResetQuotes={handleResetQuotes}
           />
         </section>
 
@@ -178,7 +169,7 @@ export function QuoteAppClient({ initialQuote }: { initialQuote?: Quote }) {
           reactionTrigger={reactionTrigger}
           sleepTrigger={sleepTrigger}
           reducedMotion={reducedMotion}
-          onInteract={reachedEnd ? handleResetQuotes : handleNextQuote}
+          onInteract={handleNextQuote}
           onReady={onSceneReady}
           onUnavailable={onSceneUnavailable}
           onPhaseChange={onPhaseChange}

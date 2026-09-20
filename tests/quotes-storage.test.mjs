@@ -145,3 +145,28 @@ test("getRandomQuote respects excludeId when possible", () => {
     }
   }
 });
+
+test("seamless reshuffle cycles through multiple complete rounds without immediate repeats", () => {
+  let seenIds = [];
+  let currentId = undefined;
+
+  // Run through 3 complete cycles (48 quote requests)
+  for (let cycle = 0; cycle < 3; cycle++) {
+    const cycleSeen = [];
+    for (let step = 0; step < quotes.length; step++) {
+      const next = getNextQuote({ currentId, seenIds });
+      assert.ok(next.quote);
+      assert.notEqual(next.quote.id, currentId, "Must never repeat immediate previous quote");
+
+      if (next.resetOccurred) {
+        seenIds = [next.quote.id];
+      } else {
+        seenIds.push(next.quote.id);
+      }
+      cycleSeen.push(next.quote.id);
+      currentId = next.quote.id;
+    }
+    // Each cycle must show all quotes with zero duplicates
+    assert.equal(new Set(cycleSeen).size, quotes.length, `Cycle ${cycle} should contain all distinct quotes`);
+  }
+});

@@ -124,6 +124,8 @@ export function resetStoredSeenQuotes(): void {
 /**
  * Select the next quote prioritizing unseen quotes so no duplicates appear
  * until the user has discovered every quote in the collection.
+ * When all quotes have been seen, seamlessly starts a fresh shuffled round,
+ * ensuring the immediate previous quote is never repeated back-to-back.
  */
 export function getNextQuote({
   currentId,
@@ -131,7 +133,7 @@ export function getNextQuote({
 }: {
   currentId?: number;
   seenIds?: number[];
-}): { quote: Quote; reachedEnd: boolean } {
+}): { quote: Quote; reachedEnd: boolean; resetOccurred: boolean } {
   if (quotes.length === 0) {
     throw new Error("No quotes available in dataset");
   }
@@ -139,7 +141,7 @@ export function getNextQuote({
   const seenSet = new Set(seenIds);
   const unseen = quotes.filter((q) => !seenSet.has(q.id));
 
-  // If there are still unseen quotes available
+  // If there are still unseen quotes available in the current cycle
   if (unseen.length > 0) {
     const pool = unseen.length > 1 && currentId !== undefined
       ? unseen.filter((q) => q.id !== currentId)
@@ -149,14 +151,20 @@ export function getNextQuote({
     return {
       quote: selected,
       reachedEnd: willHaveSeenCount >= quotes.length,
+      resetOccurred: false,
     };
   }
 
-  // All quotes have been seen
-  const candidates = currentId !== undefined ? quotes.filter((q) => q.id !== currentId) : quotes;
-  const fallback = candidates[Math.floor(Math.random() * candidates.length)] ?? quotes[0];
+  // All quotes have been seen: seamlessly reshuffle for the next cycle
+  const candidates = currentId !== undefined
+    ? quotes.filter((q) => q.id !== currentId)
+    : quotes;
+  const pool = candidates.length > 0 ? candidates : quotes;
+  const selected = pool[Math.floor(Math.random() * pool.length)];
+
   return {
-    quote: fallback,
+    quote: selected,
     reachedEnd: true,
+    resetOccurred: true,
   };
 }
