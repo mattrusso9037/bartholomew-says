@@ -29,7 +29,7 @@ export const quotes: Quote[] = [
   },
   {
     id: 3,
-    text: "Bartholomew does not know how to swim. But worry not—She has always excelled at drowning.",
+    text: "Bartholomew does not know how to swim. But worry not—. She has always excelled at drowning.",
     book: "The Knight and the Moth",
     chapter: 19,
     page: 244,
@@ -106,7 +106,7 @@ export const quotes: Quote[] = [
   },
   {
     id: 14,
-    text: "If you wish to divine before the bitch—excuse me—before the abbess arrives, beest get cracking.",
+    text: "If you wish to divine before the bitch—excuse me—before the abbess arrives, best get cracking.",
     book: "The Knight and the Moth",
     chapter: 7,
     page: 75,

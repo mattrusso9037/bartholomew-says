@@ -3,6 +3,9 @@
 import { useEffect, useRef, useState } from "react";
 import { motion } from "framer-motion";
 
+const MIN_DURATION_MS = 3000;
+const TIMEOUT_MS = 12000;
+
 /** Lightweight HTML/SVG remains visible while the heavier WebGL assets load. */
 export function CathedralArrival({ ready, reducedMotion, onComplete }: {
   ready: boolean; reducedMotion: boolean; onComplete: () => void;
@@ -11,35 +14,65 @@ export function CathedralArrival({ ready, reducedMotion, onComplete }: {
   const [progress, setProgress] = useState(0);
   const [timedOut, setTimedOut] = useState(false);
   const progressRef = useRef(0);
+
+  const readyRef = useRef(ready);
+  const onCompleteRef = useRef(onComplete);
+  const timedOutRef = useRef(false);
+
+  useEffect(() => {
+    readyRef.current = ready;
+  }, [ready]);
+
+  useEffect(() => {
+    onCompleteRef.current = onComplete;
+  }, [onComplete]);
+
   useEffect(() => {
     started.current = performance.now();
     let frame = 0;
-    let last = started.current;
+
     const tick = (now: number) => {
-      const delta = Math.min(64, now - last) / 1000;
-      last = now;
-      const completing = ready || timedOut;
-      const target = completing ? 100 : 95;
-      // 0 to 95 is deliberately independent of byte size. This makes the
-      // reveal feel consistent on fast and slow connections alike. Once the
-      // scene is ready, finish the remaining distance promptly even when it
-      // became ready before the simulated 95% hold point.
-      const rate = reducedMotion ? 1000 : completing ? 72 : 18;
-      const next = Math.min(target, progressRef.current + rate * delta);
+      const elapsed = Math.max(0, now - started.current);
+      const isLoaded = readyRef.current || timedOutRef.current;
+
+      let next = 0;
+      if (elapsed < MIN_DURATION_MS) {
+        // Show loading screen for a minimum of 5 seconds by throttling progress (0 to 95%)
+        next = Math.min(95, (elapsed / MIN_DURATION_MS) * 95);
+      } else if (isLoaded) {
+        // After 5 seconds, if it's loaded, proceed right to 100
+        next = 100;
+      } else {
+        // After 5 seconds, hold at 95% until assets finish loading
+        next = 95;
+      }
+
       progressRef.current = next;
       setProgress(next);
-      if (next < 100) frame = window.requestAnimationFrame(tick);
-      else onComplete();
+
+      if (next < 100) {
+        frame = window.requestAnimationFrame(tick);
+      } else {
+        onCompleteRef.current();
+      }
     };
+
     frame = window.requestAnimationFrame(tick);
-    const timeout = window.setTimeout(() => setTimedOut(true), 12000);
-    return () => { window.cancelAnimationFrame(frame); window.clearTimeout(timeout); };
-  }, [onComplete, ready, reducedMotion, timedOut]);
+    const timeout = window.setTimeout(() => {
+      timedOutRef.current = true;
+      setTimedOut(true);
+    }, TIMEOUT_MS);
+
+    return () => {
+      window.cancelAnimationFrame(frame);
+      window.clearTimeout(timeout);
+    };
+  }, []);
 
   return (
     <motion.div className="cathedral-arrival" initial={{ opacity: 1 }} exit={{ opacity: 0, scale: reducedMotion ? 1 : 1.035 }} transition={{ duration: reducedMotion ? 0.15 : 0.85, ease: "easeInOut" }}>
       <div className="arrival-frame" aria-hidden="true" />
-      <motion.div className="arrival-content" animate={{ scale: ready || timedOut ? 1.035 : 1 }} transition={{ duration: reducedMotion ? 0 : 0.9, ease: [0.22, 1, 0.36, 1] }}>
+      <motion.div className="arrival-content" animate={{ scale: (ready || timedOut) && progress >= 95 ? 1.035 : 1 }} transition={{ duration: reducedMotion ? 0 : 0.9, ease: [0.22, 1, 0.36, 1] }}>
         <div className="arrival-emblem" aria-hidden="true">
           <motion.div className="arrival-halo" animate={reducedMotion ? { opacity: 0.5 } : { opacity: [0.25, 0.65, 0.25], scale: [0.94, 1.04, 0.94] }} transition={reducedMotion ? { duration: 0 } : { duration: 4, repeat: Infinity, ease: "easeInOut" }} />
           <svg viewBox="0 0 180 240" fill="none" className="arrival-window">
