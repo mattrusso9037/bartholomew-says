@@ -15,7 +15,6 @@ export function MothTrail({
   compact: boolean;
   reducedMotion: boolean;
 }) {
-  if (compact) return null;
   const cursor = useRef(0);
   const sinceEmission = useRef(0);
 

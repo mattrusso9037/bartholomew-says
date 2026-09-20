@@ -1,6 +1,6 @@
 "use client";
 
-import { useMemo } from "react";
+import { useEffect, useMemo } from "react";
 import { useGLTF } from "@react-three/drei";
 import { Mesh, MeshStandardMaterial } from "three";
 
@@ -33,6 +33,15 @@ export function Plants({
     return copy;
   }, [scene, compact]);
 
+  useEffect(() => () => {
+    shelf.traverse(child => {
+      if ((child as Mesh).isMesh) {
+        const material = (child as Mesh).material;
+        for (const owned of Array.isArray(material) ? material : [material]) owned.dispose();
+      }
+    });
+  }, [shelf]);
+
   const scale = compact ? 1.58 : 1.72;
   const posY = -0.35613 * scale;
 
@@ -48,4 +57,3 @@ export function Plants({
 }
 
 useGLTF.preload("/models/gothic-shelf.glb");
-

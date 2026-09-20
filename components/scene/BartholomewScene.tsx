@@ -113,6 +113,8 @@ export default function BartholomewScene({
   onPhaseChange,
 }: SceneProps) {
   const [visible, setVisible] = useState(true);
+  const container = useRef<HTMLDivElement>(null);
+  const [inView, setInView] = useState(true);
   const compact = useSyncExternalStore(subscribeCompact, () => window.matchMedia(compactQuery).matches, () => false);
   const [phase, setPhase] = useState<CharacterPhase>("seated");
   const handlePhase = useCallback((next: CharacterPhase) => { setPhase(next); onPhaseChange?.(next); }, [onPhaseChange]);
@@ -126,8 +128,18 @@ export default function BartholomewScene({
     return () => document.removeEventListener("visibilitychange", onVisibility);
   }, []);
 
+  useEffect(() => {
+    const element = container.current;
+    if (!element) return;
+    const observer = new IntersectionObserver(([entry]) => setInView(entry.isIntersecting), { rootMargin: "80px" });
+    observer.observe(element);
+    return () => observer.disconnect();
+  }, []);
+
+  const active = visible && inView;
+
   return (
-    <div className="diorama" aria-hidden="true" data-character-phase={phase}>
+    <div ref={container} className="diorama" aria-hidden="true" data-character-phase={phase} data-animation-active={active && !reducedMotion}>
       <SceneBoundary onUnavailable={onUnavailable}>
         <Canvas
           camera={{ fov: 34, position: [0, 2.05, 6.45], near: 0.1, far: 20 }}
@@ -140,7 +152,7 @@ export default function BartholomewScene({
             toneMapping: ACESFilmicToneMapping,
             preserveDrawingBuffer: false,
           }}
-          frameloop={!visible ? "never" : reducedMotion ? "demand" : "always"}
+          frameloop={!active ? "never" : reducedMotion ? "demand" : "always"}
           onCreated={({ camera, gl }) => {
             camera.lookAt(0, 0.92, 0);
             gl.setClearColor(0x000000, 0);

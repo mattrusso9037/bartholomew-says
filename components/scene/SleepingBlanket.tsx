@@ -23,6 +23,7 @@ function MobileSleepingBlanket({
 }) {
   const root = useRef<Group>(null);
   const time = useRef(0);
+  const activeMaterial = useRef<MeshStandardMaterial | null>(null);
 
   const { geometry, material, texture } = useMemo(() => {
     // Medieval gold-embroidered velvet texture
@@ -68,6 +69,7 @@ function MobileSleepingBlanket({
   }, []);
 
   useEffect(() => {
+    activeMaterial.current = material;
     return () => {
       geometry.dispose();
       material.dispose();
@@ -82,7 +84,7 @@ function MobileSleepingBlanket({
     root.current.visible = isVisible;
     if (!isVisible) return;
 
-    material.opacity = opacity;
+    if (activeMaterial.current) activeMaterial.current.opacity = opacity;
 
     if (!reducedMotion) {
       time.current += Math.min(delta, 0.05);
@@ -101,13 +103,16 @@ function MobileSleepingBlanket({
 }
 
 /** A small cloth height field fitted to the animated body, with an uncovered head. */
-export function SleepingBlanket({ model, head, phase, amount, settle, reducedMotion, compact }: {
+type BlanketProps = {
   model: SkinnedMesh; head: Bone; phase: RefObject<CharacterPhase>;
   amount: RefObject<number>; settle: RefObject<number>; reducedMotion: boolean; compact: boolean;
-}) {
-  if (compact) {
-    return <MobileSleepingBlanket amount={amount} settle={settle} reducedMotion={reducedMotion} />;
-  }
+};
+
+export function SleepingBlanket(props: BlanketProps) {
+  return props.compact ? <MobileSleepingBlanket {...props} /> : <FittedSleepingBlanket {...props} />;
+}
+
+function FittedSleepingBlanket({ model, head, phase, amount, settle, reducedMotion, compact }: BlanketProps) {
   const root = useRef<Group>(null);
   const elapsed = useRef(0);
   const sinceFit = useRef(1);

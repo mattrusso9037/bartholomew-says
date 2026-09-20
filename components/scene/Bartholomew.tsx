@@ -19,7 +19,7 @@ export interface BartholomewProps {
 }
 
 export function Bartholomew({ reactionTrigger = 0, sleepTrigger = 0, reducedMotion = false, compact = false, onInteract, onPhaseChange }: BartholomewProps) {
-  const gltf = useGLTF("/models/bartholomew-animated.glb");
+  const gltf = useGLTF(compact ? "/models/bartholomew-mobile.glb" : "/models/bartholomew-animated.glb");
   const body = useRef<Group>(null);
   const pointer = useRef(new Vector2());
   const gaze = useRef(new Vector2());
@@ -134,8 +134,10 @@ export function Bartholomew({ reactionTrigger = 0, sleepTrigger = 0, reducedMoti
   }, [gltf, compact]);
   const director = useRef<CharacterDirector | null>(null);
   const currentAction = useRef<AnimationAction | null>(null);
+  const activeRig = useRef(rig);
 
   useEffect(() => {
+    activeRig.current = rig;
     // Rebind after cleanup, including React Strict Mode's setup/cleanup replay.
     actions.current = Object.fromEntries(rig.clips.map(clip => [clip.name, rig.mixer.clipAction(clip)]));
     director.current = new CharacterDirector(Math.random, actions.current.CurlUp.getClip().duration / 0.62, actions.current.Drowsy.getClip().duration / 0.8, actions.current.Settle.getClip().duration / 0.6, actions.current.CurlUp.getClip().duration / 0.85);
@@ -167,6 +169,7 @@ export function Bartholomew({ reactionTrigger = 0, sleepTrigger = 0, reducedMoti
   }, [compact, reducedMotion]);
 
   useFrame((_, rawDelta) => {
+    const rig = activeRig.current;
     const requestedSleep = sleepTrigger !== sleepRequest.current;
     if (reducedMotion && !requestedSleep) return;
     const delta = reducedMotion ? 0 : Math.min(rawDelta, 0.05);
