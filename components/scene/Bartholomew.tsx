@@ -8,6 +8,8 @@ import { AnimationMixer, AnimationUtils, Euler, LoopOnce, LoopPingPong, MathUtil
 import { CharacterDirector, type CharacterPhase } from "@/lib/character-motion";
 import { blanketEnvelope } from "@/lib/blanket-motion";
 import { SleepingBlanket } from "./SleepingBlanket";
+import { HeadMotion } from "@/lib/head-motion";
+import { PoseBlend } from "@/lib/pose-blend";
 
 export interface BartholomewProps {
   reactionTrigger?: number;
@@ -130,7 +132,8 @@ export function Bartholomew({ reactionTrigger = 0, sleepTrigger = 0, reducedMoti
     clips.push(AnimationUtils.subclip(sit, "Settle", (sit.duration - 1.65) * 24, sit.duration * 24, 24));
     const mixer = new AnimationMixer(scene);
     const head = mesh.skeleton.bones.find(bone => bone.name.endsWith("Head")) as Bone;
-    return { scene, mesh, mixer, clips, head, eyeGaze, eyeClose, parentWorld: new Quaternion(), target: new Quaternion(), angles: new Euler() };
+    return { scene, mesh, mixer, clips, head, eyeGaze, eyeClose, parentWorld: new Quaternion(), target: new Quaternion(), angles: new Euler(),
+      authoredHead: new Quaternion(), desiredHeadWorld: new Quaternion(), headMotion: new HeadMotion(), blend: new PoseBlend() };
   }, [gltf, compact]);
   const director = useRef<CharacterDirector | null>(null);
   const currentAction = useRef<AnimationAction | null>(null);
@@ -151,6 +154,9 @@ export function Bartholomew({ reactionTrigger = 0, sleepTrigger = 0, reducedMoti
     idle.reset().setLoop(LoopPingPong, Infinity).setEffectiveTimeScale(0.65).play();
     currentAction.current = idle;
     rig.mixer.update(0);
+    rig.authoredHead.copy(rig.head.quaternion);
+    rig.headMotion.reset();
+    rig.blend.reset();
     return () => {
       rig.mixer.stopAllAction();
       rig.mixer.uncacheRoot(rig.scene);
@@ -202,6 +208,7 @@ export function Bartholomew({ reactionTrigger = 0, sleepTrigger = 0, reducedMoti
         secondsAfterWake.current = 0;
         wakeBlending.current = false;
       } else {
+        if (previous && previous !== action) rig.blend.start(action, Object.values(actions.current));
         action.reset().setEffectiveWeight(1);
         const reverse = next === "waking" || next === "stretching";
         const speed = name === "Seated" ? 0.65 : name === "Drowsy" ? 0.8 : name === "Settle" ? 0.6 : reverse ? 0.85 : 0.62;
@@ -209,7 +216,6 @@ export function Bartholomew({ reactionTrigger = 0, sleepTrigger = 0, reducedMoti
         action.clampWhenFinished = true;
         action.time = reverse ? action.getClip().duration : 0;
         action.setEffectiveTimeScale(reverse ? -speed : speed).play();
-        if (previous && previous !== action) action.crossFadeFrom(previous, 1.6, false);
       }
       currentAction.current = action;
       onPhaseChange?.(next);
@@ -217,10 +223,15 @@ export function Bartholomew({ reactionTrigger = 0, sleepTrigger = 0, reducedMoti
     if (phase.current === "waking" && !wakeBlending.current && actions.current.CurlUp.time < 1.36) {
       wakeBlending.current = true;
       const idle = actions.current.Seated;
+      rig.blend.start(idle, Object.values(actions.current));
       idle.reset().setEffectiveWeight(1).setLoop(LoopPingPong, Infinity).setEffectiveTimeScale(0.65).play();
-      idle.crossFadeFrom(actions.current.CurlUp, 1.6, false);
     }
+    // Keep the procedural correction out of the next mixer's source pose.
+    rig.head.quaternion.copy(rig.authoredHead);
+    if (reducedMotion) rig.blend.reset();
+    else rig.blend.update(delta);
     rig.mixer.update(delta);
+    rig.authoredHead.copy(rig.head.quaternion);
     const curled = phase.current === "sleeping" ? 1 : phase.current === "curling" || phase.current === "waking"
       ? MathUtils.smoothstep(actions.current.CurlUp.time / actions.current.CurlUp.getClip().duration, 0.15, 0.75) : 0;
     // Sink into the book as he curls up; the cloth samples this adjusted pose.
@@ -241,13 +252,17 @@ export function Bartholomew({ reactionTrigger = 0, sleepTrigger = 0, reducedMoti
       const targetEyeClose = isSleeping ? Math.max(curled, phase.current === "sleeping" ? 1 : 0) : phase.current === "drowsy" ? 0.45 : 0;
       rig.eyeClose.value = reducedMotion ? targetEyeClose : MathUtils.damp(rig.eyeClose.value, targetEyeClose, 5.0, delta);
     }
-    // mixer, keeping the face visible and adding a restrained cursor response.
+    // First compose the authored pose with face stabilization, then smooth the
+    // displayed world orientation so a moving neck cannot snap the head.
     rig.scene.updateMatrixWorld(true);
     rig.head.parent!.getWorldQuaternion(rig.parentWorld);
     const nod = Math.sin(reaction.current * 3) * Math.exp(-reaction.current * 1.8) * 0.045;
     rig.angles.set(-0.06 - gaze.current.y * 0.055 + nod, gaze.current.x * 0.12 + 0.10, -curled * 0.30);
     rig.target.setFromEuler(rig.angles).premultiply(rig.parentWorld.invert());
     rig.head.quaternion.slerp(rig.target, 0.55 + curled * 0.42);
+    rig.head.getWorldQuaternion(rig.desiredHeadWorld);
+    rig.head.quaternion.copy(rig.headMotion.update(rig.desiredHeadWorld, delta, reducedMotion))
+      .premultiply(rig.parentWorld);
     rig.scene.updateMatrixWorld(true);
     rig.mesh.skeleton.update();
   }, -2);
