@@ -46,89 +46,57 @@ export function Bartholomew({ reactionTrigger = 0, sleepTrigger = 0, reducedMoti
         material.metalness = 0.04;
         if (material.map) material.map.anisotropy = 8;
         if (material.normalMap) material.normalMap.anisotropy = 8;
-        // The supplied rig has no eye bones. Move the original painted pupils
-        // inside their sockets, using the mesh's bind coordinates as a mask.
-        // When curled or sleeping, close the eyelids with a natural crease.
-        material.onBeforeCompile = shader => {
-          shader.uniforms.uEyeGaze = eyeGaze;
-          shader.uniforms.uEyeClose = eyeClose;
-          shader.vertexShader = `varying vec3 vEyeBindPosition;\n${shader.vertexShader}`
-            .replace("#include <begin_vertex>", "#include <begin_vertex>\nvEyeBindPosition = position;");
-          shader.fragmentShader = `uniform vec2 uEyeGaze;\nuniform float uEyeClose;\nvarying vec3 vEyeBindPosition;\n${shader.fragmentShader}`
-            .replace("#include <map_fragment>", compact ? `
-              #ifdef USE_MAP
-                float eyeCenterX = vEyeBindPosition.x > 0.0 ? 0.120 : -0.142;
-                float eyeLocalX = vEyeBindPosition.x - eyeCenterX;
-                float eyeLocalY = vEyeBindPosition.y - 1.073;
-                float eyeRadius = length(vec2(eyeLocalX / 0.065, eyeLocalY / 0.038));
-                float eyeMask = (1.0 - smoothstep(0.85, 1.05, eyeRadius))
-                  * smoothstep(0.18, 0.24, vEyeBindPosition.z);
-                vec2 offset = uEyeGaze * vec2(0.012, 0.007) * (1.0 - uEyeClose) * eyeMask;
-                vec2 eyeUv = vMapUv - offset;
-                vec4 sampledTex = texture2D(map, eyeUv);
+        // On desktop, add subtle eye gaze tracking and smooth eyelid closure when sleeping.
+        // On mobile (compact mode), omit custom shader hooks entirely to eliminate GPU strain and context loss.
+        if (!compact) {
+          material.onBeforeCompile = shader => {
+            shader.uniforms.uEyeGaze = eyeGaze;
+            shader.uniforms.uEyeClose = eyeClose;
+            shader.vertexShader = `varying vec3 vEyeBindPosition;\n${shader.vertexShader}`
+              .replace("#include <begin_vertex>", "#include <begin_vertex>\nvEyeBindPosition = position;");
+            shader.fragmentShader = `uniform vec2 uEyeGaze;\nuniform float uEyeClose;\nvarying vec3 vEyeBindPosition;\n${shader.fragmentShader}`
+              .replace("#include <map_fragment>", `
+                #ifdef USE_MAP
+                  float eyeCenterX = vEyeBindPosition.x > 0.0 ? 0.120 : -0.142;
+                  float eyeLocalX = vEyeBindPosition.x - eyeCenterX;
+                  float eyeLocalY = vEyeBindPosition.y - 1.073;
+                  float eyeRadius = length(vec2(eyeLocalX / 0.065, eyeLocalY / 0.038));
+                  float eyeMask = (1.0 - smoothstep(0.85, 1.05, eyeRadius))
+                    * smoothstep(0.18, 0.24, vEyeBindPosition.z);
+                  vec2 px = dFdx(vEyeBindPosition.xy), py = dFdy(vEyeBindPosition.xy);
+                  float determinant = px.x * py.y - px.y * py.x;
+                  vec2 gazeOffset = uEyeGaze * vec2(0.012, 0.007) * (1.0 - uEyeClose) * eyeMask;
+                  vec2 screenShift = abs(determinant) > 0.00000001
+                    ? vec2(py.y * gazeOffset.x - py.x * gazeOffset.y, px.x * gazeOffset.y - px.y * gazeOffset.x) / determinant
+                    : vec2(0.0);
+                  vec2 eyeUv = vMapUv - dFdx(vMapUv) * screenShift.x - dFdy(vMapUv) * screenShift.y;
+                  vec4 sampledTex = texture2D(map, eyeUv);
 
-                float slitY = -0.004 - (eyeLocalX * eyeLocalX) * 1.5;
-                float upperEdge = mix(0.045, slitY - 0.005, uEyeClose);
-                float lowerEdge = mix(-0.045, slitY + 0.002, uEyeClose);
-                float upperCover = smoothstep(upperEdge - 0.003, upperEdge + 0.003, eyeLocalY);
-                float lowerCover = 1.0 - smoothstep(lowerEdge - 0.003, lowerEdge + 0.003, eyeLocalY);
-                float lidCover = max(upperCover, lowerCover);
-                float closeAmount = clamp(lidCover, 0.0, 1.0) * eyeMask;
+                  float slitY = -0.004 - (eyeLocalX * eyeLocalX) * 1.5;
+                  float upperEdge = mix(0.045, slitY - 0.005, uEyeClose);
+                  float lowerEdge = mix(-0.045, slitY + 0.002, uEyeClose);
+                  float upperCover = smoothstep(upperEdge - 0.003, upperEdge + 0.003, eyeLocalY);
+                  float lowerCover = 1.0 - smoothstep(lowerEdge - 0.003, lowerEdge + 0.003, eyeLocalY);
+                  float lidCover = max(upperCover, lowerCover);
+                  float closeAmount = clamp(lidCover, 0.0, 1.0) * eyeMask;
 
-                float distToSeam = abs(eyeLocalY - slitY);
-                float seam = (1.0 - smoothstep(0.0006, 0.0035, distToSeam)) * uEyeClose;
-                float overhang = smoothstep(0.0, 0.003, eyeLocalY - slitY) * (1.0 - smoothstep(0.003, 0.016, eyeLocalY - slitY)) * uEyeClose;
-                float lidRound = smoothstep(0.005, 0.016, eyeLocalY - slitY) * (1.0 - smoothstep(0.016, 0.030, eyeLocalY - slitY)) * uEyeClose;
+                  float distToSeam = abs(eyeLocalY - slitY);
+                  float seam = (1.0 - smoothstep(0.0006, 0.0035, distToSeam)) * uEyeClose;
+                  float overhang = smoothstep(0.0, 0.003, eyeLocalY - slitY) * (1.0 - smoothstep(0.003, 0.016, eyeLocalY - slitY)) * uEyeClose;
+                  float lidRound = smoothstep(0.005, 0.016, eyeLocalY - slitY) * (1.0 - smoothstep(0.016, 0.030, eyeLocalY - slitY)) * uEyeClose;
 
-                float n1 = sin(vEyeBindPosition.x * 420.0) * sin(vEyeBindPosition.y * 420.0) * sin(vEyeBindPosition.z * 420.0);
-                float stoneGrain = n1 * 0.03;
-                vec3 stoneBase = (vec3(0.385, 0.352, 0.328) + stoneGrain) * (1.0 - seam * 0.75 - overhang * 0.28) + vec3(0.035) * lidRound;
+                  float n1 = sin(vEyeBindPosition.x * 420.0) * sin(vEyeBindPosition.y * 420.0) * sin(vEyeBindPosition.z * 420.0);
+                  float stoneGrain = n1 * 0.03;
+                  vec3 stoneBase = (vec3(0.385, 0.352, 0.328) + stoneGrain) * (1.0 - seam * 0.75 - overhang * 0.28) + vec3(0.035) * lidRound;
 
-                vec3 eyeColor = mix(sampledTex.rgb, stoneBase, closeAmount);
-                diffuseColor.rgb *= eyeColor;
-                diffuseColor.a *= sampledTex.a;
-              #endif
-            ` : `
-              #ifdef USE_MAP
-                float eyeCenterX = vEyeBindPosition.x > 0.0 ? 0.120 : -0.142;
-                float eyeLocalX = vEyeBindPosition.x - eyeCenterX;
-                float eyeLocalY = vEyeBindPosition.y - 1.073;
-                float eyeRadius = length(vec2(eyeLocalX / 0.065, eyeLocalY / 0.038));
-                float eyeMask = (1.0 - smoothstep(0.85, 1.05, eyeRadius))
-                  * smoothstep(0.18, 0.24, vEyeBindPosition.z);
-                vec2 px = dFdx(vEyeBindPosition.xy), py = dFdy(vEyeBindPosition.xy);
-                float determinant = px.x * py.y - px.y * py.x;
-                vec2 gazeOffset = uEyeGaze * vec2(0.012, 0.007) * (1.0 - uEyeClose) * eyeMask;
-                vec2 screenShift = abs(determinant) > 0.00000001
-                  ? vec2(py.y * gazeOffset.x - py.x * gazeOffset.y, px.x * gazeOffset.y - px.y * gazeOffset.x) / determinant
-                  : vec2(0.0);
-                vec2 eyeUv = vMapUv - dFdx(vMapUv) * screenShift.x - dFdy(vMapUv) * screenShift.y;
-                vec4 sampledTex = texture2D(map, eyeUv);
-
-                float slitY = -0.004 - (eyeLocalX * eyeLocalX) * 1.5;
-                float upperEdge = mix(0.045, slitY - 0.005, uEyeClose);
-                float lowerEdge = mix(-0.045, slitY + 0.002, uEyeClose);
-                float upperCover = smoothstep(upperEdge - 0.003, upperEdge + 0.003, eyeLocalY);
-                float lowerCover = 1.0 - smoothstep(lowerEdge - 0.003, lowerEdge + 0.003, eyeLocalY);
-                float lidCover = max(upperCover, lowerCover);
-                float closeAmount = clamp(lidCover, 0.0, 1.0) * eyeMask;
-
-                float distToSeam = abs(eyeLocalY - slitY);
-                float seam = (1.0 - smoothstep(0.0006, 0.0035, distToSeam)) * uEyeClose;
-                float overhang = smoothstep(0.0, 0.003, eyeLocalY - slitY) * (1.0 - smoothstep(0.003, 0.016, eyeLocalY - slitY)) * uEyeClose;
-                float lidRound = smoothstep(0.005, 0.016, eyeLocalY - slitY) * (1.0 - smoothstep(0.016, 0.030, eyeLocalY - slitY)) * uEyeClose;
-
-                float n1 = sin(vEyeBindPosition.x * 420.0) * sin(vEyeBindPosition.y * 420.0) * sin(vEyeBindPosition.z * 420.0);
-                float stoneGrain = n1 * 0.03;
-                vec3 stoneBase = (vec3(0.385, 0.352, 0.328) + stoneGrain) * (1.0 - seam * 0.75 - overhang * 0.28) + vec3(0.035) * lidRound;
-
-                vec3 eyeColor = mix(sampledTex.rgb, stoneBase, closeAmount);
-                diffuseColor.rgb *= eyeColor;
-                diffuseColor.a *= sampledTex.a;
-              #endif
-            `);
-        };
-        material.customProgramCacheKey = () => compact ? "bartholomew-eye-close-compact-v4" : "bartholomew-eye-close-v4";
+                  vec3 eyeColor = mix(sampledTex.rgb, stoneBase, closeAmount);
+                  diffuseColor.rgb *= eyeColor;
+                  diffuseColor.a *= sampledTex.a;
+                #endif
+              `);
+          };
+          material.customProgramCacheKey = () => "bartholomew-eye-desktop-v1";
+        }
         mesh.castShadow = mesh.receiveShadow = true;
         mesh.frustumCulled = false;
       }
@@ -262,12 +230,14 @@ export function Bartholomew({ reactionTrigger = 0, sleepTrigger = 0, reducedMoti
     const blanket = blanketEnvelope(phase.current, progress, secondsAfterWake.current);
     blanketAmount.current = blanket.opacity;
     blanketSettle.current = blanket.settle;
-    gaze.current.x = MathUtils.damp(gaze.current.x, compact ? 0 : pointer.current.x, 2.4, delta);
-    gaze.current.y = MathUtils.damp(gaze.current.y, compact ? 0 : pointer.current.y, 2.4, delta);
-    rig.eyeGaze.value.copy(gaze.current).multiplyScalar(1 - curled);
-    const isSleeping = phase.current === "sleeping" || phase.current === "curling";
-    const targetEyeClose = isSleeping ? Math.max(curled, phase.current === "sleeping" ? 1 : 0) : phase.current === "drowsy" ? 0.45 : 0;
-    rig.eyeClose.value = reducedMotion ? targetEyeClose : MathUtils.damp(rig.eyeClose.value, targetEyeClose, 5.0, delta);
+    if (!compact) {
+      gaze.current.x = MathUtils.damp(gaze.current.x, pointer.current.x, 2.4, delta);
+      gaze.current.y = MathUtils.damp(gaze.current.y, pointer.current.y, 2.4, delta);
+      rig.eyeGaze.value.copy(gaze.current).multiplyScalar(1 - curled);
+      const isSleeping = phase.current === "sleeping" || phase.current === "curling";
+      const targetEyeClose = isSleeping ? Math.max(curled, phase.current === "sleeping" ? 1 : 0) : phase.current === "drowsy" ? 0.45 : 0;
+      rig.eyeClose.value = reducedMotion ? targetEyeClose : MathUtils.damp(rig.eyeClose.value, targetEyeClose, 5.0, delta);
+    }
     // mixer, keeping the face visible and adding a restrained cursor response.
     rig.scene.updateMatrixWorld(true);
     rig.head.parent!.getWorldQuaternion(rig.parentWorld);
