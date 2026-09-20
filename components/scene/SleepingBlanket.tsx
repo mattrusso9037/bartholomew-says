@@ -18,8 +18,9 @@ export function SleepingBlanket({ model, head, phase, amount, settle, reducedMot
   const root = useRef<Group>(null);
   const elapsed = useRef(0);
   const sinceFit = useRef(1);
+  const normalFrame = useRef(0);
   const cloth = useMemo(() => {
-    const nx = compact ? 28 : 40, nz = compact ? 24 : 34;
+    const nx = compact ? 18 : 40, nz = compact ? 14 : 34;
     const geometry = new PlaneGeometry(WIDTH, FRONT - REAR, nx, nz);
     geometry.rotateX(-Math.PI / 2);
     geometry.translate(CENTER_X, 0, (FRONT + REAR) / 2);
@@ -35,7 +36,7 @@ export function SleepingBlanket({ model, head, phase, amount, settle, reducedMot
     const headIndices = new Set(model.skeleton.bones.flatMap((bone, i) => /Head|Neck|headfront/.test(bone.name) ? [i] : []));
     const sampleIndices: number[] = [];
     const joints = model.geometry.attributes.skinIndex, weights = model.geometry.attributes.skinWeight;
-    for (let i = 0; i < joints.count; i += compact ? 9 : 5) {
+    for (let i = 0; i < joints.count; i += compact ? 14 : 5) {
       let headWeight = 0;
       for (let c = 0; c < 4; c++) if (headIndices.has(joints.getComponent(i, c))) headWeight += weights.getComponent(i, c);
       if (headWeight < 0.25) sampleIndices.push(i);
@@ -128,9 +129,16 @@ export function SleepingBlanket({ model, head, phase, amount, settle, reducedMot
       positions.setY(i, cloth.initialized && !reducedMotion ? MathUtils.damp(positions.getY(i), target, 6, delta) : target);
     }
     positions.needsUpdate = true;
-    cloth.geometry.computeVertexNormals();
+    normalFrame.current++;
+    if (!compact || normalFrame.current % 3 === 0 || !cloth.initialized) {
+      cloth.geometry.computeVertexNormals();
+    }
     cloth.initialized = true;
   }, -1);
 
-  return <group ref={root} visible={false} name="Breathing velvet quilt"><mesh geometry={cloth.geometry} material={cloth.material} castShadow receiveShadow /></group>;
+  return (
+    <group ref={root} visible={false} name="Breathing velvet quilt">
+      <mesh geometry={cloth.geometry} material={cloth.material} castShadow={!compact} receiveShadow />
+    </group>
+  );
 }

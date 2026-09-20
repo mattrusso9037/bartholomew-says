@@ -19,7 +19,7 @@ export function MothTrail({
   const sinceEmission = useRef(0);
 
   const particles = useMemo(() => {
-    const count = compact ? 50 : 90;
+    const count = compact ? 25 : 90;
     const geometry = new BufferGeometry();
     const positions = new Float32Array(count * 3);
     const alpha = new Float32Array(count);

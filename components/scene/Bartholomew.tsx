@@ -50,7 +50,16 @@ export function Bartholomew({ reactionTrigger = 0, sleepTrigger = 0, reducedMoti
           shader.vertexShader = `varying vec3 vEyeBindPosition;\n${shader.vertexShader}`
             .replace("#include <begin_vertex>", "#include <begin_vertex>\nvEyeBindPosition = position;");
           shader.fragmentShader = `uniform vec2 uEyeGaze;\nvarying vec3 vEyeBindPosition;\n${shader.fragmentShader}`
-            .replace("#include <map_fragment>", `
+            .replace("#include <map_fragment>", compact ? `
+              #ifdef USE_MAP
+                vec2 eyeLocal = vec2(abs(vEyeBindPosition.x) - 0.125, vEyeBindPosition.y - 1.073);
+                float eyeMask = (1.0 - smoothstep(0.45, 1.0, length(eyeLocal / vec2(0.063, 0.036))))
+                  * smoothstep(0.26, 0.29, vEyeBindPosition.z);
+                vec2 offset = uEyeGaze * vec2(0.012, 0.007) * eyeMask;
+                vec2 eyeUv = vMapUv - offset;
+                diffuseColor *= texture2D(map, eyeUv);
+              #endif
+            ` : `
               #ifdef USE_MAP
                 vec2 eyeLocal = vec2(abs(vEyeBindPosition.x) - 0.125, vEyeBindPosition.y - 1.073);
                 float eyeMask = (1.0 - smoothstep(0.45, 1.0, length(eyeLocal / vec2(0.063, 0.036))))
@@ -66,7 +75,7 @@ export function Bartholomew({ reactionTrigger = 0, sleepTrigger = 0, reducedMoti
               #endif
             `);
         };
-        material.customProgramCacheKey = () => "bartholomew-eye-gaze-v1";
+        material.customProgramCacheKey = () => compact ? "bartholomew-eye-gaze-compact-v1" : "bartholomew-eye-gaze-v1";
         mesh.castShadow = mesh.receiveShadow = true;
         mesh.frustumCulled = false;
       }
@@ -101,7 +110,7 @@ export function Bartholomew({ reactionTrigger = 0, sleepTrigger = 0, reducedMoti
     const mixer = new AnimationMixer(scene);
     const head = mesh.skeleton.bones.find(bone => bone.name.endsWith("Head")) as Bone;
     return { scene, mesh, mixer, clips, head, eyeGaze, parentWorld: new Quaternion(), target: new Quaternion(), angles: new Euler() };
-  }, [gltf]);
+  }, [gltf, compact]);
   const director = useRef<CharacterDirector | null>(null);
   const currentAction = useRef<AnimationAction | null>(null);
 

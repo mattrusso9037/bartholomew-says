@@ -128,11 +128,28 @@ export default function BartholomewScene({
       <SceneBoundary onUnavailable={onUnavailable}>
         <Canvas
           camera={{ fov: 34, position: [0, 2.55, 6.7], near: 0.1, far: 20 }}
-          dpr={compact ? [1, 1.25] : [1, 1.65]}
+          dpr={compact ? 1 : [1, 1.5]}
           shadows={{ type: PCFShadowMap }}
-          gl={{ alpha: true, antialias: true, powerPreference: "low-power", toneMapping: ACESFilmicToneMapping }}
+          gl={{
+            alpha: true,
+            antialias: !compact,
+            powerPreference: "high-performance",
+            toneMapping: ACESFilmicToneMapping,
+            preserveDrawingBuffer: false,
+          }}
           frameloop={!visible ? "never" : reducedMotion ? "demand" : "always"}
-          onCreated={({ camera, gl }) => { camera.lookAt(0, 0.92, 0); gl.setClearColor(0x000000, 0); gl.toneMappingExposure = 1.05; }}
+          onCreated={({ camera, gl }) => {
+            camera.lookAt(0, 0.92, 0);
+            gl.setClearColor(0x000000, 0);
+            gl.toneMappingExposure = 1.05;
+            const canvas = gl.domElement;
+            const handleContextLost = (event: Event) => {
+              event.preventDefault();
+              console.warn("WebGL context lost on device. Gracefully transitioning to ambient backdrop.");
+              onUnavailable?.();
+            };
+            canvas.addEventListener("webglcontextlost", handleContextLost, { once: true });
+          }}
           fallback={<SceneReady onReady={onUnavailable} />}
         >
           <CameraController mode={mode} reducedMotion={reducedMotion} compact={compact} />

@@ -10,14 +10,15 @@ export function Plants({
   reducedMotion?: boolean;
   compact?: boolean;
 }) {
-  const { scene } = useGLTF("/models/Meshy_AI_Ivy_Crowned_Gothic_St_0919174215_texture.glb");
+  const { scene } = useGLTF("/models/gothic-shelf.glb");
 
   const shelf = useMemo(() => {
     const copy = scene.clone(true);
     copy.traverse((child) => {
       if ((child as Mesh).isMesh) {
         const mesh = child as Mesh;
-        mesh.castShadow = true;
+        // On mobile, avoid rendering the shelf into shadow depth map
+        mesh.castShadow = !compact;
         mesh.receiveShadow = true;
         if (mesh.material) {
           const mat = (mesh.material as MeshStandardMaterial).clone();
@@ -28,7 +29,7 @@ export function Plants({
       }
     });
     return copy;
-  }, [scene]);
+  }, [scene, compact]);
 
   const scale = compact ? 1.58 : 1.72;
   const posY = -0.35613 * scale;
@@ -44,5 +45,5 @@ export function Plants({
   );
 }
 
-useGLTF.preload("/models/Meshy_AI_Ivy_Crowned_Gothic_St_0919174215_texture.glb");
+useGLTF.preload("/models/gothic-shelf.glb");
 
