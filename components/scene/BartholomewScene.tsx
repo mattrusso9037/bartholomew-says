@@ -49,7 +49,7 @@ function CameraController({
     if (mode === "sleeping") {
       return compact
         ? {
-            targetPos: new Vector3(0, 1.86, 5.85),
+            targetPos: new Vector3(0, 1.76, 4.95),
             targetLookAt: new Vector3(0, 0.98, 0),
           }
         : {
@@ -59,8 +59,8 @@ function CameraController({
     }
     return compact
       ? {
-          targetPos: new Vector3(0, 1.98, 6.18),
-          targetLookAt: new Vector3(0, 1.05, 0),
+          targetPos: new Vector3(0, 1.84, 5.15),
+          targetLookAt: new Vector3(0, 1.02, 0),
         }
       : {
           targetPos: new Vector3(0.1, 2.05, 6.45),
