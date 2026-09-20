@@ -15,6 +15,7 @@ export function SleepingBlanket({ model, head, phase, amount, settle, reducedMot
   model: SkinnedMesh; head: Bone; phase: RefObject<CharacterPhase>;
   amount: RefObject<number>; settle: RefObject<number>; reducedMotion: boolean; compact: boolean;
 }) {
+  if (compact) return null;
   const root = useRef<Group>(null);
   const elapsed = useRef(0);
   const sinceFit = useRef(1);

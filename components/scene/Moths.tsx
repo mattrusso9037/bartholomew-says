@@ -110,6 +110,7 @@ function Moth({ model, index, reactionTrigger, reducedMotion, compact }: { model
 }
 
 export function Moths({ reactionTrigger, reducedMotion = false, compact = false }: { reactionTrigger: number; reducedMotion?: boolean; compact?: boolean }) {
+  if (compact) return null;
   const { nodes } = useGLTF("/models/silk-moth.glb");
-  return <group name="Silk moths">{homes.slice(0, compact ? 3 : 4).map((_, index) => <Moth key={index} model={nodes["silk-moth"] as Mesh} index={index} reactionTrigger={reactionTrigger} reducedMotion={reducedMotion} compact={compact} />)}</group>;
+  return <group name="Silk moths">{homes.map((_, index) => <Moth key={index} model={nodes["silk-moth"] as Mesh} index={index} reactionTrigger={reactionTrigger} reducedMotion={reducedMotion} compact={compact} />)}</group>;
 }

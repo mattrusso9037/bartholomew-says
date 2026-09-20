@@ -131,8 +131,8 @@ export default function BartholomewScene({
       <SceneBoundary onUnavailable={onUnavailable}>
         <Canvas
           camera={{ fov: 34, position: [0, 2.05, 6.45], near: 0.1, far: 20 }}
-          dpr={compact ? [1.5, 2] : [1, 2]}
-          shadows={{ type: PCFShadowMap }}
+          dpr={compact ? [1, 1.35] : [1, 2]}
+          shadows={compact ? false : { type: PCFShadowMap }}
           gl={{
             alpha: true,
             antialias: true,

@@ -285,12 +285,31 @@ function Candle({ position, height, reducedMotion }: { position: [number, number
 export function SceneLighting({ reducedMotion = false, compact = false }: { reducedMotion?: boolean; compact?: boolean }) {
   return (
     <group name="Moonlight and candlelight">
-      <hemisphereLight args={["#c0cfd6", "#514430", 1.05]} />
-      <directionalLight position={[-3, 5, 3]} color="#c6dceb" intensity={2.05} castShadow shadow-mapSize={[compact ? 512 : 1024, compact ? 512 : 1024]} shadow-camera-left={-2.7} shadow-camera-right={2.7} shadow-camera-top={3.5} shadow-camera-bottom={-1.5} shadow-camera-near={0.5} shadow-camera-far={12} shadow-normalBias={0.025} shadow-bias={-0.0001} shadow-radius={3} />
-      <directionalLight position={[0, 1.8, 4]} color="#e5d9bc" intensity={0.5} />
-      <directionalLight position={[2, 3, -3]} color="#b6cde0" intensity={1.7} />
-      <Candle position={[-1.19, 0, 0.05]} height={0.38} reducedMotion={reducedMotion} />
-      <Candle position={[1.07, 0, -0.35]} height={0.63} reducedMotion={reducedMotion} />
+      <hemisphereLight args={["#c0cfd6", "#514430", compact ? 1.35 : 1.05]} />
+      <directionalLight
+        position={[-3, 5, 3]}
+        color="#c6dceb"
+        intensity={compact ? 2.2 : 2.05}
+        castShadow={!compact}
+        shadow-mapSize={[1024, 1024]}
+        shadow-camera-left={-2.7}
+        shadow-camera-right={2.7}
+        shadow-camera-top={3.5}
+        shadow-camera-bottom={-1.5}
+        shadow-camera-near={0.5}
+        shadow-camera-far={12}
+        shadow-normalBias={0.025}
+        shadow-bias={-0.0001}
+        shadow-radius={3}
+      />
+      <directionalLight position={[0, 1.8, 4]} color="#e5d9bc" intensity={compact ? 0.75 : 0.5} />
+      <directionalLight position={[2, 3, -3]} color="#b6cde0" intensity={compact ? 1.3 : 1.7} />
+      {!compact && (
+        <>
+          <Candle position={[-1.19, 0, 0.05]} height={0.38} reducedMotion={reducedMotion} />
+          <Candle position={[1.07, 0, -0.35]} height={0.63} reducedMotion={reducedMotion} />
+        </>
+      )}
     </group>
   );
 }
