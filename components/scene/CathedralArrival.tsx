@@ -48,10 +48,10 @@ export function CathedralArrival({ ready, reducedMotion, onComplete }: {
             <motion.path d="M31 218V114C31 75 58 43 90 24C122 43 149 75 149 114V218" stroke="currentColor" strokeWidth="1.2" pathLength={1} initial={false} animate={{ pathLength: progress / 100 }} transition={{ duration: reducedMotion ? 0 : 0.08, ease: "linear" }} />
             <path d="M44 219H136M90 25V49M31 164H50M130 164H149" stroke="currentColor" opacity=".35" />
             <motion.path d="M105 66A28 28 0 1 0 120 108A29 29 0 0 1 105 66Z" stroke="currentColor" strokeWidth="1.1" fill="currentColor" fillOpacity=".055" initial={reducedMotion ? false : { opacity: 0 }} animate={{ opacity: 1 }} transition={{ duration: 1.2, delay: reducedMotion ? 0 : 0.3 }} />
-            {[ [57,80], [126,58], [68,129], [119,147], [44,181], [134,196] ].map(([x,y],i) => (
-              <motion.path key={i} d={`M${x-3} ${y}h6M${x} ${y-3}v6`} stroke="currentColor" strokeWidth=".8" animate={reducedMotion ? { opacity: .45 } : { opacity: [.12,.85,.12] }} transition={reducedMotion ? { duration: 0 } : { duration: 2.8, delay: i * .35, repeat: Infinity, ease: "easeInOut" }} />
+            {[[57, 80], [126, 58], [68, 129], [119, 147], [44, 181], [134, 196]].map(([x, y], i) => (
+              <motion.path key={i} d={`M${x - 3} ${y}h6M${x} ${y - 3}v6`} stroke="currentColor" strokeWidth=".8" animate={reducedMotion ? { opacity: .45 } : { opacity: [.12, .85, .12] }} transition={reducedMotion ? { duration: 0 } : { duration: 2.8, delay: i * .35, repeat: Infinity, ease: "easeInOut" }} />
             ))}
-            <motion.g animate={reducedMotion ? {} : { y: [0,-5,0] }} transition={reducedMotion ? { duration: 0 } : { duration: 3.5, repeat: Infinity, ease: "easeInOut" }}>
+            <motion.g animate={reducedMotion ? {} : { y: [0, -5, 0] }} transition={reducedMotion ? { duration: 0 } : { duration: 3.5, repeat: Infinity, ease: "easeInOut" }}>
               <path d="M89 171C77 151 56 151 60 166C62 175 75 178 89 176C77 179 74 192 84 185L90 177M91 171C103 151 124 151 120 166C118 175 105 178 91 176C103 179 106 192 96 185L90 177" fill="currentColor" fillOpacity=".35" stroke="currentColor" strokeWidth=".7" />
               <path d="M90 169V181M89 170L85 164M91 170L95 164" stroke="currentColor" />
             </motion.g>
