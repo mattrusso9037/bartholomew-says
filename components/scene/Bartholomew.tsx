@@ -57,49 +57,78 @@ export function Bartholomew({ reactionTrigger = 0, sleepTrigger = 0, reducedMoti
           shader.fragmentShader = `uniform vec2 uEyeGaze;\nuniform float uEyeClose;\nvarying vec3 vEyeBindPosition;\n${shader.fragmentShader}`
             .replace("#include <map_fragment>", compact ? `
               #ifdef USE_MAP
-                vec2 eyeLocal = vec2(abs(vEyeBindPosition.x) - 0.125, vEyeBindPosition.y - 1.073);
-                float eyeRadius = length(eyeLocal / vec2(0.063, 0.036));
-                float eyeMask = (1.0 - smoothstep(0.45, 1.0, eyeRadius))
-                  * smoothstep(0.26, 0.29, vEyeBindPosition.z);
+                float eyeCenterX = vEyeBindPosition.x > 0.0 ? 0.120 : -0.142;
+                float eyeLocalX = vEyeBindPosition.x - eyeCenterX;
+                float eyeLocalY = vEyeBindPosition.y - 1.073;
+                float eyeRadius = length(vec2(eyeLocalX / 0.065, eyeLocalY / 0.038));
+                float eyeMask = (1.0 - smoothstep(0.85, 1.05, eyeRadius))
+                  * smoothstep(0.18, 0.24, vEyeBindPosition.z);
                 vec2 offset = uEyeGaze * vec2(0.012, 0.007) * (1.0 - uEyeClose) * eyeMask;
                 vec2 eyeUv = vMapUv - offset;
                 vec4 sampledTex = texture2D(map, eyeUv);
-                float slitY = -0.004 - (eyeLocal.x * eyeLocal.x) * 1.5;
-                float lidDist = eyeLocal.y - slitY;
-                float crease = (1.0 - smoothstep(0.0008, 0.0035, abs(lidDist))) * eyeMask * uEyeClose;
-                float lidShadow = smoothstep(0.0, 0.012, lidDist) * (1.0 - smoothstep(0.012, 0.028, lidDist)) * eyeMask * uEyeClose;
-                vec3 stoneEyelid = mix(sampledTex.rgb, vec3(0.55, 0.52, 0.48), 0.78);
-                vec3 finalColor = mix(sampledTex.rgb, stoneEyelid, uEyeClose * eyeMask);
-                finalColor *= (1.0 - crease * 0.7 - lidShadow * 0.2);
-                diffuseColor.rgb *= finalColor;
+
+                float slitY = -0.004 - (eyeLocalX * eyeLocalX) * 1.5;
+                float upperEdge = mix(0.045, slitY - 0.005, uEyeClose);
+                float lowerEdge = mix(-0.045, slitY + 0.002, uEyeClose);
+                float upperCover = smoothstep(upperEdge - 0.003, upperEdge + 0.003, eyeLocalY);
+                float lowerCover = 1.0 - smoothstep(lowerEdge - 0.003, lowerEdge + 0.003, eyeLocalY);
+                float lidCover = max(upperCover, lowerCover);
+                float closeAmount = clamp(lidCover, 0.0, 1.0) * eyeMask;
+
+                float distToSeam = abs(eyeLocalY - slitY);
+                float seam = (1.0 - smoothstep(0.0006, 0.0035, distToSeam)) * uEyeClose;
+                float overhang = smoothstep(0.0, 0.003, eyeLocalY - slitY) * (1.0 - smoothstep(0.003, 0.016, eyeLocalY - slitY)) * uEyeClose;
+                float lidRound = smoothstep(0.005, 0.016, eyeLocalY - slitY) * (1.0 - smoothstep(0.016, 0.030, eyeLocalY - slitY)) * uEyeClose;
+
+                float n1 = sin(vEyeBindPosition.x * 420.0) * sin(vEyeBindPosition.y * 420.0) * sin(vEyeBindPosition.z * 420.0);
+                float stoneGrain = n1 * 0.03;
+                vec3 stoneBase = (vec3(0.385, 0.352, 0.328) + stoneGrain) * (1.0 - seam * 0.75 - overhang * 0.28) + vec3(0.035) * lidRound;
+
+                vec3 eyeColor = mix(sampledTex.rgb, stoneBase, closeAmount);
+                diffuseColor.rgb *= eyeColor;
                 diffuseColor.a *= sampledTex.a;
               #endif
             ` : `
               #ifdef USE_MAP
-                vec2 eyeLocal = vec2(abs(vEyeBindPosition.x) - 0.125, vEyeBindPosition.y - 1.073);
-                float eyeRadius = length(eyeLocal / vec2(0.063, 0.036));
-                float eyeMask = (1.0 - smoothstep(0.45, 1.0, eyeRadius))
-                  * smoothstep(0.26, 0.29, vEyeBindPosition.z);
+                float eyeCenterX = vEyeBindPosition.x > 0.0 ? 0.120 : -0.142;
+                float eyeLocalX = vEyeBindPosition.x - eyeCenterX;
+                float eyeLocalY = vEyeBindPosition.y - 1.073;
+                float eyeRadius = length(vec2(eyeLocalX / 0.065, eyeLocalY / 0.038));
+                float eyeMask = (1.0 - smoothstep(0.85, 1.05, eyeRadius))
+                  * smoothstep(0.18, 0.24, vEyeBindPosition.z);
                 vec2 px = dFdx(vEyeBindPosition.xy), py = dFdy(vEyeBindPosition.xy);
                 float determinant = px.x * py.y - px.y * py.x;
                 vec2 gazeOffset = uEyeGaze * vec2(0.012, 0.007) * (1.0 - uEyeClose) * eyeMask;
-                float slitY = -0.004 - (eyeLocal.x * eyeLocal.x) * 1.5;
-                float lidDist = eyeLocal.y - slitY;
-                float lidShiftY = (lidDist > 0.0 ? 0.038 : -0.026) * uEyeClose * eyeMask;
-                vec2 totalOffset = gazeOffset + vec2(0.0, lidShiftY);
                 vec2 screenShift = abs(determinant) > 0.00000001
-                  ? vec2(py.y * totalOffset.x - py.x * totalOffset.y, px.x * totalOffset.y - px.y * totalOffset.x) / determinant
+                  ? vec2(py.y * gazeOffset.x - py.x * gazeOffset.y, px.x * gazeOffset.y - px.y * gazeOffset.x) / determinant
                   : vec2(0.0);
                 vec2 eyeUv = vMapUv - dFdx(vMapUv) * screenShift.x - dFdy(vMapUv) * screenShift.y;
                 vec4 sampledTex = texture2D(map, eyeUv);
-                float crease = (1.0 - smoothstep(0.0008, 0.0035, abs(lidDist))) * eyeMask * uEyeClose;
-                float lidShadow = smoothstep(0.0, 0.012, lidDist) * (1.0 - smoothstep(0.012, 0.028, lidDist)) * eyeMask * uEyeClose;
-                diffuseColor *= sampledTex;
-                diffuseColor.rgb *= (1.0 - crease * 0.7 - lidShadow * 0.2);
+
+                float slitY = -0.004 - (eyeLocalX * eyeLocalX) * 1.5;
+                float upperEdge = mix(0.045, slitY - 0.005, uEyeClose);
+                float lowerEdge = mix(-0.045, slitY + 0.002, uEyeClose);
+                float upperCover = smoothstep(upperEdge - 0.003, upperEdge + 0.003, eyeLocalY);
+                float lowerCover = 1.0 - smoothstep(lowerEdge - 0.003, lowerEdge + 0.003, eyeLocalY);
+                float lidCover = max(upperCover, lowerCover);
+                float closeAmount = clamp(lidCover, 0.0, 1.0) * eyeMask;
+
+                float distToSeam = abs(eyeLocalY - slitY);
+                float seam = (1.0 - smoothstep(0.0006, 0.0035, distToSeam)) * uEyeClose;
+                float overhang = smoothstep(0.0, 0.003, eyeLocalY - slitY) * (1.0 - smoothstep(0.003, 0.016, eyeLocalY - slitY)) * uEyeClose;
+                float lidRound = smoothstep(0.005, 0.016, eyeLocalY - slitY) * (1.0 - smoothstep(0.016, 0.030, eyeLocalY - slitY)) * uEyeClose;
+
+                float n1 = sin(vEyeBindPosition.x * 420.0) * sin(vEyeBindPosition.y * 420.0) * sin(vEyeBindPosition.z * 420.0);
+                float stoneGrain = n1 * 0.03;
+                vec3 stoneBase = (vec3(0.385, 0.352, 0.328) + stoneGrain) * (1.0 - seam * 0.75 - overhang * 0.28) + vec3(0.035) * lidRound;
+
+                vec3 eyeColor = mix(sampledTex.rgb, stoneBase, closeAmount);
+                diffuseColor.rgb *= eyeColor;
+                diffuseColor.a *= sampledTex.a;
               #endif
             `);
         };
-        material.customProgramCacheKey = () => compact ? "bartholomew-eye-close-compact-v2" : "bartholomew-eye-close-v2";
+        material.customProgramCacheKey = () => compact ? "bartholomew-eye-close-compact-v4" : "bartholomew-eye-close-v4";
         mesh.castShadow = mesh.receiveShadow = true;
         mesh.frustumCulled = false;
       }
@@ -238,7 +267,7 @@ export function Bartholomew({ reactionTrigger = 0, sleepTrigger = 0, reducedMoti
     rig.eyeGaze.value.copy(gaze.current).multiplyScalar(1 - curled);
     const isSleeping = phase.current === "sleeping" || phase.current === "curling";
     const targetEyeClose = isSleeping ? Math.max(curled, phase.current === "sleeping" ? 1 : 0) : phase.current === "drowsy" ? 0.45 : 0;
-    rig.eyeClose.value = MathUtils.damp(rig.eyeClose.value, targetEyeClose, 5.0, delta);
+    rig.eyeClose.value = reducedMotion ? targetEyeClose : MathUtils.damp(rig.eyeClose.value, targetEyeClose, 5.0, delta);
     // mixer, keeping the face visible and adding a restrained cursor response.
     rig.scene.updateMatrixWorld(true);
     rig.head.parent!.getWorldQuaternion(rig.parentWorld);
